@@ -88,9 +88,9 @@ class CostMonitor:
 
         # Usage tracking
         self.usage_history: List[TokenUsage] = []
-        self.hourly_costs = defaultdict(float)
-        self.daily_costs = defaultdict(float)
-        self.model_costs = defaultdict(float)
+        self.hourly_costs: Dict[str, float] = defaultdict(float)
+        self.daily_costs: Dict[str, float] = defaultdict(float)
+        self.model_costs: Dict[str, float] = defaultdict(float)
 
         # Load historical data
         self._load_history()

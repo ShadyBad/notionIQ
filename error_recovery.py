@@ -289,7 +289,10 @@ class ErrorRecoveryManager:
                         self._add_to_dead_letter_queue(func, args, kwargs, last_error)
                         raise last_error
 
-        raise last_error
+        if last_error:
+            raise last_error
+        else:
+            raise Exception("Unknown error in retry logic")
 
     def _classify_error_severity(self, error: Exception) -> ErrorSeverity:
         """Classify error severity based on type and message"""
@@ -339,8 +342,8 @@ class ErrorRecoveryManager:
             }
 
         # Count by severity
-        by_severity = {}
-        by_type = {}
+        by_severity: Dict[str, int] = {}
+        by_type: Dict[str, int] = {}
 
         for error in self.error_history:
             # Count by severity

@@ -25,6 +25,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Key Features
 
+- **Full workspace scanning** - Analyzes entire Notion workspace by default
+- **Multiple processing modes** - Workspace (default), Inbox, Page hierarchy, or specific Databases
 - Deep workspace scanning and relationship mapping
 - AI-powered content classification with confidence scoring
 - Multi-dimensional analysis (urgency, context, completeness)
@@ -32,6 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Actionable recommendations with reasoning
 - Beautiful CLI output with Rich library
 - Comprehensive JSON reports
+- **Smart caching** - Minimizes API costs with intelligent response caching
 
 ## Development Commands
 
@@ -51,17 +54,26 @@ cp .env.example .env
 
 ### Running the Application
 ```bash
-# Full analysis (recommended first run)
+# Full workspace analysis (default mode)
 python notion_organizer.py
+
+# Analyze entire workspace with batch limit
+python notion_organizer.py --mode workspace --batch-size 10
+
+# Only process inbox database
+python notion_organizer.py --mode inbox
+
+# Process specific databases
+python notion_organizer.py --mode databases --target-databases "Projects" --target-databases "Tasks"
+
+# Analyze a page and all its children (directory mode)
+python notion_organizer.py --mode page --target-page "page-id-here"
+
+# Skip certain databases
+python notion_organizer.py --skip-databases "Archives" --skip-databases "Templates"
 
 # Dry run (no changes to Notion)
 python notion_organizer.py --dry-run
-
-# Process limited batch
-python notion_organizer.py --batch-size 10
-
-# Skip workspace analysis (faster)
-python notion_organizer.py --skip-workspace
 
 # Help
 python notion_organizer.py --help

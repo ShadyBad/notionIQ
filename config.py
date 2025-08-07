@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     notion_workspace_id: Optional[str] = Field(
         None, description="Optional workspace ID for multi-workspace support"
     )
+    notion_recommendations_parent_id: Optional[str] = Field(
+        None, description="Parent page or database ID for recommendations page"
+    )
     notion_api_version: str = Field("2022-06-28", description="Notion API version")
 
     # AI Configuration

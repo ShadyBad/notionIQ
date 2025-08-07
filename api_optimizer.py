@@ -187,7 +187,7 @@ class SmartCache:
         self.cache_dir = cache_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.ttl = timedelta(hours=ttl_hours)
-        self.fingerprint_cache = {}
+        self.fingerprint_cache: Dict[str, Any] = {}
         self.similarity_threshold = 0.85
 
         # Load existing cache

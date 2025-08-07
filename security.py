@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from logger_wrapper import logger
 
@@ -241,7 +241,7 @@ class EncryptionManager:
         """
         # Use a fixed salt for consistency (in production, store this securely)
         salt = b"notioniq_salt_v1"
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,

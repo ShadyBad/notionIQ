@@ -94,7 +94,7 @@ class WorkspaceAnalyzer:
     async def _scan_workspace_structure(self):
         """Scan workspace for databases and structure"""
         logger.info("Performing deep workspace scan...")
-        await self.notion.scan_workspace()
+        self.notion.workspace_structure = await self.notion.scan_workspace()
 
     async def _analyze_database_structures(self):
         """Analyze database structures and properties"""

@@ -6,6 +6,12 @@ A premium AI-powered tool that analyzes your Notion workspace, classifies conten
 
 ## 🚀 Features
 
+- **Full Workspace Scanning**: Analyzes your ENTIRE Notion workspace by default, not just inbox
+- **Multiple Processing Modes**: 
+  - Workspace mode (default) - Scans all databases and pages
+  - Inbox mode - Focuses on your inbox database only
+  - Page mode - Analyzes a specific page and all its children
+  - Database mode - Targets specific databases you choose
 - **Deep Workspace Analysis**: Comprehensive scanning of your entire Notion structure
 - **AI-Powered Classification**: Uses Claude AI to understand and categorize your content
 - **Multi-Dimensional Analysis**: Evaluates urgency, context, completeness, and relationships
@@ -135,10 +141,42 @@ export GEMINI_MODEL="pro"      # or "ultra" or "pro-vision"
 
 ## 🎯 Usage Examples
 
-### Basic Analysis
+### Basic Analysis (Full Workspace - Default)
 ```bash
-# Analyze workspace and process inbox
+# Analyze your ENTIRE workspace (all databases and pages)
 python notion_organizer.py
+
+# Limit pages per database for testing
+python notion_organizer.py --batch-size 5
+```
+
+### Processing Modes
+
+#### Workspace Mode (Default)
+```bash
+# Analyze entire workspace
+python notion_organizer.py --mode workspace
+
+# Skip certain databases
+python notion_organizer.py --mode workspace --skip-databases "Archives" --skip-databases "Templates"
+```
+
+#### Inbox Mode
+```bash
+# Only process your inbox database
+python notion_organizer.py --mode inbox --batch-size 20
+```
+
+#### Page Mode (Directory Processing)
+```bash
+# Analyze a specific page and ALL its children/grandchildren
+python notion_organizer.py --mode page --target-page "your-page-id-here"
+```
+
+#### Database Mode
+```bash
+# Process specific databases only
+python notion_organizer.py --mode databases --target-databases "Projects" --target-databases "Tasks"
 ```
 
 ### Dry Run (Preview Only)
@@ -149,7 +187,7 @@ python notion_organizer.py --dry-run
 
 ### Process Specific Number of Pages
 ```bash
-# Process only 10 pages
+# Process only 10 pages per database
 python notion_organizer.py --batch-size 10
 ```
 

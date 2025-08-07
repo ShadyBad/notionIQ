@@ -88,14 +88,23 @@ python workspace_analyzer.py
 
 ### Step 4: Dry Run Test
 ```bash
-# Test with small batch, no changes
-python notion_organizer.py --batch-size 1 --dry-run
+# Test with small batch, no changes (inbox only)
+python notion_organizer.py --mode inbox --batch-size 1 --dry-run
+
+# Test workspace mode with limit
+python notion_organizer.py --mode workspace --batch-size 2 --dry-run
 ```
 
 ### Step 5: Full Test Run
 ```bash
-# Process 5 pages as a test
+# Process 5 pages per database (full workspace)
 python notion_organizer.py --batch-size 5
+
+# Process specific databases only
+python notion_organizer.py --mode databases --target-databases "Inbox" --batch-size 10
+
+# Process a page and its children
+python notion_organizer.py --mode page --target-page "your-page-id"
 ```
 
 ## 🔍 Verification Steps

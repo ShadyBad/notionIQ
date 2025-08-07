@@ -51,4 +51,4 @@ except ImportError:
             """Compatibility method - no-op for standard logging"""
             pass
 
-    logger = LoguruCompatible()
+    logger: Logger = LoguruCompatible()  # type: ignore[assignment]

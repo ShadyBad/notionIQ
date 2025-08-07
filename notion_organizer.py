@@ -96,16 +96,30 @@ class NotionOrganizer:
     async def run_analysis(
         self,
         analyze_workspace: bool = True,
-        process_inbox: bool = True,
+        process_mode: str = "workspace",  # "workspace", "inbox", "page", "databases"
+        target_databases: Optional[List[str]] = None,
+        skip_databases: Optional[List[str]] = None,
+        target_page_id: Optional[str] = None,
         create_recommendations: bool = True,
         dry_run: bool = False,
     ) -> Dict[str, Any]:
-        """Run the complete analysis workflow"""
+        """Run the complete analysis workflow
+        
+        Args:
+            analyze_workspace: Whether to analyze workspace structure
+            process_mode: Processing mode - "workspace" (all), "inbox" (inbox only), 
+                         "page" (specific page hierarchy), "databases" (specific databases)
+            target_databases: List of database names to process (for "databases" mode)
+            skip_databases: List of database names to skip
+            target_page_id: Page ID to process hierarchy from (for "page" mode)
+            create_recommendations: Whether to generate recommendations
+            dry_run: Run without making changes
+        """
 
         console.print(
             Panel.fit(
                 "[bold cyan]🚀 NotionIQ - Intelligent Workspace Organizer[/bold cyan]\n"
-                "[dim]Analyzing your Notion workspace for optimization opportunities[/dim]",
+                f"[dim]Mode: {process_mode.upper()} | Analyzing your Notion workspace[/dim]",
                 border_style="cyan",
             )
         )
@@ -117,10 +131,31 @@ class NotionOrganizer:
                 deep_scan=self.settings.enable_workspace_scan
             )
 
-        # Step 2: Process Inbox Pages
-        if process_inbox:
-            console.print("\n[bold]Step 2: Processing Inbox Pages[/bold]")
+        # Step 2: Process Pages based on mode
+        console.print(f"\n[bold]Step 2: Processing Pages ({process_mode} mode)[/bold]")
+        
+        if process_mode == "workspace":
+            # Process all databases in workspace
+            await self._process_all_databases(
+                skip_databases=skip_databases,
+                max_pages_per_db=self.settings.batch_size
+            )
+        elif process_mode == "inbox":
+            # Process only inbox
             await self._process_inbox_pages()
+        elif process_mode == "page" and target_page_id:
+            # Process specific page hierarchy
+            await self._process_page_hierarchy(target_page_id)
+        elif process_mode == "databases" and target_databases:
+            # Process specific databases
+            await self._process_all_databases(
+                target_databases=target_databases,
+                skip_databases=skip_databases,
+                max_pages_per_db=self.settings.batch_size
+            )
+        else:
+            console.print(f"[yellow]Invalid mode or missing parameters for mode: {process_mode}[/yellow]")
+            return {}
 
         # Step 3: Generate Recommendations
         if create_recommendations:
@@ -160,6 +195,132 @@ class NotionOrganizer:
         self._display_summary()
 
         return self.report_data
+
+    async def _process_all_databases(self, 
+                                    target_databases: Optional[List[str]] = None,
+                                    skip_databases: Optional[List[str]] = None,
+                                    max_pages_per_db: Optional[int] = None):
+        """Process pages from all databases in the workspace"""
+        
+        console.print(f"\n[dim]Scanning all databases in workspace...[/dim]")
+        
+        # Get all databases from workspace
+        # Use the already loaded workspace structure or scan it
+        if not self.notion.workspace_structure:
+            self.notion.workspace_structure = await self.notion.scan_workspace()
+        
+        databases = self.notion.workspace_structure.get('databases', {})
+        
+        skip_databases = skip_databases or []
+        total_pages_processed = 0
+        
+        # Filter databases if specified
+        if target_databases:
+            databases = {k: v for k, v in databases.items() 
+                        if v.get('title') in target_databases}
+        
+        console.print(f"[green]Found {len(databases)} databases to process[/green]")
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            
+            for db_id, db_info in databases.items():
+                db_name = db_info.get('title', 'Untitled')
+                
+                # Skip if in skip list
+                if db_name in skip_databases:
+                    continue
+                
+                task = progress.add_task(f"Processing {db_name}...", total=None)
+                
+                try:
+                    # Get pages from this database
+                    pages = self.notion.get_database_pages(
+                        db_id,
+                        limit=max_pages_per_db or self.settings.batch_size
+                    )
+                    
+                    if pages:
+                        # Process pages like we do for inbox
+                        pages_with_content = []
+                        for page in pages:
+                            page_id = page["id"]
+                            content = self.notion.get_page_content(page_id)
+                            pages_with_content.append({"page": page, "content": content})
+                        
+                        # Analyze pages
+                        for page_data in pages_with_content:
+                            page = page_data["page"]
+                            content = page_data["content"]
+                            
+                            # Optimize content for AI
+                            optimized = self.api_optimizer.optimize_page_content(
+                                content, page
+                            )
+                            
+                            # Analyze with AI
+                            if optimized.get("content"):
+                                result = await self.ai_analyzer.analyze_page(
+                                    page, optimized["content"]
+                                )
+                                self.analysis_results.append(result)
+                                total_pages_processed += 1
+                        
+                        console.print(f"  [dim]✓ {db_name}: {len(pages)} pages processed[/dim]")
+                    else:
+                        console.print(f"  [dim]- {db_name}: No pages found[/dim]")
+                        
+                except Exception as e:
+                    logger.error(f"Error processing database {db_name}: {e}")
+                    console.print(f"  [red]✗ {db_name}: Error - {str(e)[:50]}[/red]")
+                
+                progress.remove_task(task)
+        
+        console.print(f"\n[green]✓ Processed {total_pages_processed} pages across all databases[/green]")
+        logger.info(f"Analyzed {total_pages_processed} pages from all databases")
+        
+    async def _process_page_hierarchy(self, page_id: str, max_depth: int = 10):
+        """Process a specific page and all its children recursively"""
+        
+        console.print(f"\n[dim]Processing page hierarchy from {page_id}...[/dim]")
+        
+        processed_pages = []
+        
+        async def process_page_and_children(page_id: str, depth: int = 0):
+            if depth > max_depth:
+                return
+            
+            try:
+                # Get the page
+                page = self.notion.client.pages.retrieve(page_id)
+                
+                # Get page content
+                content = self.notion.get_page_content(page_id)
+                
+                # Analyze the page
+                optimized = self.api_optimizer.optimize_page_content(content, page)
+                if optimized.get("content"):
+                    result = await self.ai_analyzer.analyze_page(page, optimized["content"])
+                    self.analysis_results.append(result)
+                    processed_pages.append(page_id)
+                
+                # Get child pages
+                children = self.notion.get_page_blocks(page_id)
+                for child in children:
+                    if child.get("type") == "child_page":
+                        child_id = child.get("id")
+                        await process_page_and_children(child_id, depth + 1)
+                        
+            except Exception as e:
+                logger.error(f"Error processing page {page_id}: {e}")
+        
+        await process_page_and_children(page_id)
+        
+        console.print(f"[green]✓ Processed {len(processed_pages)} pages in hierarchy[/green]")
+        logger.info(f"Analyzed {len(processed_pages)} pages in hierarchy")
 
     async def _process_inbox_pages(self):
         """Process pages from the inbox database"""
@@ -490,22 +651,49 @@ class NotionOrganizer:
                     f"[green]✅ Updated recommendations page: {page_id}[/green]"
                 )
             else:
-                # Create new page in the workspace root
-                new_page = self.notion.client.pages.create(
-                    parent={"workspace": True},
-                    properties={
-                        "title": {
-                            "title": [
-                                {
-                                    "text": {
-                                        "content": f"NotionIQ Recommendations - {datetime.now().strftime('%Y-%m-%d')}"
+                # Determine parent for new page
+                parent_id = self.settings.notion_recommendations_parent_id or self.settings.notion_inbox_database_id
+                
+                # Create new page in the specified parent (database or page)
+                # Try as database first, if that fails, try as page
+                try:
+                    parent = {"database_id": parent_id}
+                    new_page = self.notion.client.pages.create(
+                        parent=parent,
+                        properties={
+                            "title": {
+                                "title": [
+                                    {
+                                        "text": {
+                                            "content": f"NotionIQ Recommendations - {datetime.now().strftime('%Y-%m-%d')}"
+                                        }
                                     }
+                                ]
+                            }
+                        },
+                        children=recommendations_content,
+                    )
+                except Exception as db_error:
+                    # If database parent fails, try as page parent
+                    try:
+                        parent = {"page_id": parent_id}
+                        new_page = self.notion.client.pages.create(
+                            parent=parent,
+                            properties={
+                                "title": {
+                                    "title": [
+                                        {
+                                            "text": {
+                                                "content": f"NotionIQ Recommendations - {datetime.now().strftime('%Y-%m-%d')}"
+                                            }
+                                        }
+                                    ]
                                 }
-                            ]
-                        }
-                    },
-                    children=recommendations_content,
-                )
+                            },
+                            children=recommendations_content,
+                        )
+                    except Exception as page_error:
+                        raise Exception(f"Could not create page as child of database or page {parent_id}: Database error: {db_error}, Page error: {page_error}")
 
                 console.print(
                     f"[green]✅ Created recommendations page: {new_page['id']}[/green]"
@@ -797,11 +985,30 @@ class NotionOrganizer:
 
 @click.command()
 @click.option(
+    "--mode",
+    type=click.Choice(["workspace", "inbox", "page", "databases"]),
+    default="workspace",
+    help="Processing mode: workspace (all databases), inbox (inbox only), page (specific page hierarchy), databases (specific databases)",
+)
+@click.option(
+    "--target-databases",
+    multiple=True,
+    help="Specific database names to process (for 'databases' mode)",
+)
+@click.option(
+    "--skip-databases", 
+    multiple=True,
+    help="Database names to skip when processing",
+)
+@click.option(
+    "--target-page",
+    help="Page ID to process hierarchy from (for 'page' mode)",
+)
+@click.option(
     "--analyze-workspace/--skip-workspace",
     default=True,
     help="Perform deep workspace analysis",
 )
-@click.option("--process-inbox/--skip-inbox", default=True, help="Process inbox pages")
 @click.option(
     "--create-recommendations/--skip-recommendations",
     default=True,
@@ -845,8 +1052,11 @@ class NotionOrganizer:
     help="Automatically execute recommendations without confirmation",
 )
 def main(
+    mode: str,
+    target_databases: tuple,
+    skip_databases: tuple,
+    target_page: Optional[str],
     analyze_workspace: bool,
-    process_inbox: bool,
     create_recommendations: bool,
     dry_run: bool,
     batch_size: Optional[int],
@@ -932,7 +1142,10 @@ def main(
         asyncio.run(
             organizer.run_analysis(
                 analyze_workspace=analyze_workspace,
-                process_inbox=process_inbox,
+                process_mode=mode,
+                target_databases=list(target_databases) if target_databases else None,
+                skip_databases=list(skip_databases) if skip_databases else None,
+                target_page_id=target_page,
                 create_recommendations=create_recommendations,
                 dry_run=dry_run,
             )
