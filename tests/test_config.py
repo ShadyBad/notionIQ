@@ -72,25 +72,45 @@ class TestSettings:
 
     def test_api_key_validation(self):
         """Test that at least one AI API key is required"""
-        # Valid with Anthropic key
-        settings = Settings(
-            notion_api_key="key",
-            notion_inbox_database_id="db",
-            anthropic_api_key="anthropic_key",
-        )
-        assert settings.anthropic_api_key == "anthropic_key"
+        # Use a context manager to temporarily clear environment variables
+        import os
 
-        # Valid with OpenAI key
-        settings = Settings(
-            notion_api_key="key",
-            notion_inbox_database_id="db",
-            openai_api_key="openai_key",
-        )
-        assert settings.openai_api_key == "openai_key"
+        env_backup = os.environ.copy()
 
-        # Invalid without any AI key
-        with pytest.raises(ValueError, match="At least one AI API key"):
-            Settings(notion_api_key="key", notion_inbox_database_id="db")
+        # Clear AI API keys from environment
+        for key in ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"]:
+            if key in os.environ:
+                del os.environ[key]
+
+        try:
+            # Valid with Anthropic key
+            settings = Settings(
+                notion_api_key="key",
+                notion_inbox_database_id="db",
+                anthropic_api_key="anthropic_key",
+            )
+            assert settings.anthropic_api_key == "anthropic_key"
+
+            # Valid with OpenAI key
+            settings = Settings(
+                notion_api_key="key",
+                notion_inbox_database_id="db",
+                openai_api_key="openai_key",
+            )
+            assert settings.openai_api_key == "openai_key"
+
+            # Invalid without any AI key
+            with pytest.raises(ValueError, match="At least one AI API key"):
+                Settings(
+                    notion_api_key="key",
+                    notion_inbox_database_id="db",
+                    anthropic_api_key=None,
+                    openai_api_key=None,
+                )
+        finally:
+            # Restore environment
+            os.environ.clear()
+            os.environ.update(env_backup)
 
     def test_encryption_key_validation(self):
         """Test encryption key validation"""
@@ -120,6 +140,7 @@ class TestSettings:
                 notion_inbox_database_id="db",
                 anthropic_api_key="key",
                 enable_encryption=True,
+                encryption_key=None,
             )
 
     def test_directory_creation(self):

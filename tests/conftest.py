@@ -47,51 +47,54 @@ def mock_settings():
 @pytest.fixture
 def mock_notion_client(mock_settings):
     """Create mock Notion client"""
-    with patch("notion_client.Client") as mock_client_class:
-        with patch("notion_client.AsyncClient") as mock_async_client_class:
-            from notion_wrapper import NotionAdvancedClient
+    with patch("notion_wrapper.Client") as mock_client_class:
+        from notion_wrapper import NotionAdvancedClient
 
-            client = NotionAdvancedClient(mock_settings)
+        # Setup the mock client instance
+        mock_client_instance = MagicMock()
+        mock_client_class.return_value = mock_client_instance
 
-            # Mock common methods
-            client.get_database = MagicMock(
-                return_value={
-                    "id": "test_db_id",
-                    "title": [{"plain_text": "Test Database"}],
-                    "properties": {},
-                }
-            )
+        client = NotionAdvancedClient(mock_settings)
 
-            client.get_database_pages = MagicMock(
-                return_value=[
-                    {
-                        "id": "page1",
-                        "properties": {},
-                        "created_time": "2024-01-01T00:00:00Z",
-                    },
-                    {
-                        "id": "page2",
-                        "properties": {},
-                        "created_time": "2024-01-02T00:00:00Z",
-                    },
-                ]
-            )
+        # Mock common methods
+        client.get_database = MagicMock(
+            return_value={
+                "id": "test_db_id",
+                "title": [{"plain_text": "Test Database"}],
+                "properties": {},
+            }
+        )
 
-            client.get_page_content = MagicMock(
-                return_value={
+        client.get_database_pages = MagicMock(
+            return_value=[
+                {
                     "id": "page1",
-                    "title": "Test Page",
-                    "content": "Test content",
                     "properties": {},
                     "created_time": "2024-01-01T00:00:00Z",
-                    "last_edited_time": "2024-01-01T00:00:00Z",
-                    "url": "https://notion.so/test",
-                    "archived": False,
-                    "blocks": [],
-                }
-            )
+                },
+                {
+                    "id": "page2",
+                    "properties": {},
+                    "created_time": "2024-01-02T00:00:00Z",
+                },
+            ]
+        )
 
-            return client
+        client.get_page_content = MagicMock(
+            return_value={
+                "id": "page1",
+                "title": "Test Page",
+                "content": "Test content",
+                "properties": {},
+                "created_time": "2024-01-01T00:00:00Z",
+                "last_edited_time": "2024-01-01T00:00:00Z",
+                "url": "https://notion.so/test",
+                "archived": False,
+                "blocks": [],
+            }
+        )
+
+        return client
 
 
 @pytest.fixture
