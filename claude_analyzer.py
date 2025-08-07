@@ -14,8 +14,7 @@ from rich.console import Console
 from rich.panel import Panel
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from advanced_optimizer import (AdvancedOptimizer, ContentPriority,
-                                OptimizationConfig)
+from advanced_optimizer import AdvancedOptimizer, ContentPriority, OptimizationConfig
 from api_optimizer import APIOptimizer, OptimizationLevel, TokenOptimizer
 from config import CLASSIFICATION_CONFIG, Settings, get_settings
 from logger_wrapper import logger

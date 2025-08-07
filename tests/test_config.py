@@ -9,8 +9,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from config import (CLASSIFICATION_CONFIG, HEALTH_METRICS_CONFIG, AIModel,
-                    Environment, LogLevel, Settings, get_settings)
+from config import (
+    CLASSIFICATION_CONFIG,
+    HEALTH_METRICS_CONFIG,
+    AIModel,
+    Environment,
+    LogLevel,
+    Settings,
+    get_settings,
+)
 
 
 class TestSettings:
