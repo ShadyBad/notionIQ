@@ -118,6 +118,27 @@ Key environment variables in `.env`:
 6. **Export Formats**: Add PDF and HTML report generation
 7. **Template Marketplace**: System for sharing workspace templates
 
+## Agent Usage Policy
+
+**IMPORTANT: Always use specialized agents for these tasks:**
+
+### Mandatory Agent Usage:
+- **debugger-specialist**: When debugging errors or test failures
+- **devops-engineer**: For CI/CD pipeline issues or GitHub Actions
+- **build-engineer**: For build, packaging, or bundling issues  
+- **documentation-engineer**: When updating multiple documentation files
+- **code-reviewer**: After writing significant code changes
+- **test-automator**: When creating or fixing tests
+- **performance-engineer**: For optimization tasks
+- **security-engineer**: For security reviews or compliance
+
+### Automatic Triggers:
+1. After writing new code → Launch **code-reviewer**
+2. When tests fail → Launch **debugger-specialist**
+3. When updating docs → Launch **documentation-engineer**
+4. For CI/CD issues → Launch **devops-engineer**
+5. For performance issues → Launch **performance-engineer**
+
 ## Common Issues & Solutions
 
 - **Rate Limiting**: Adjust `RATE_LIMIT_REQUESTS_PER_SECOND` in config
