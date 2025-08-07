@@ -1,8 +1,9 @@
 """Basic tests for NotionIQ configuration"""
 
-import pytest
-from unittest.mock import patch
 import os
+from unittest.mock import patch
+
+import pytest
 
 
 def test_environment_loading():
@@ -13,10 +14,9 @@ def test_environment_loading():
 
 def test_config_validation():
     """Test configuration validation"""
-    # This is a placeholder test  
+    # This is a placeholder test
     assert True
 
 
 if __name__ == "__main__":
     pytest.main([__file__])
-EOF < /dev/null
