@@ -22,4 +22,3 @@ ENV PYTHONUNBUFFERED=1
 
 # Run the application
 CMD ["python", "notion_organizer.py"]
-EOF < /dev/null
