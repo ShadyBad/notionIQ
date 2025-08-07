@@ -1,34 +1,22 @@
-"""
-Setup configuration for NotionIQ
-"""
+"""Setup configuration for NotionIQ"""
 
-from pathlib import Path
+from setuptools import setup, find_packages
 
-from setuptools import find_packages, setup
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
-# Read README for long description
-readme_file = Path(__file__).parent / "README.md"
-long_description = readme_file.read_text() if readme_file.exists() else ""
-
-# Read requirements
-requirements_file = Path(__file__).parent / "requirements.txt"
-requirements = []
-if requirements_file.exists():
-    with open(requirements_file) as f:
-        requirements = [
-            line.strip() for line in f if line.strip() and not line.startswith("#")
-        ]
+with open("requirements.txt", "r", encoding="utf-8") as fh:
+    requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
     name="notioniq",
-    version="1.0.0",
+    version="2.0.0",
     author="NotionIQ Team",
-    author_email="contact@notioniq.dev",
-    description="Intelligent Notion workspace organizer powered by AI",
+    description="Intelligent Notion Workspace Organizer powered by Claude AI",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/notioniq",
-    packages=find_packages(exclude=["tests", "tests.*"]),
+    url="https://github.com/ShadyBad/notionIQ",
+    packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: End Users/Desktop",
@@ -39,33 +27,13 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
-        "Operating System :: OS Independent",
     ],
     python_requires=">=3.9",
     install_requires=requirements,
-    extras_require={
-        "dev": [
-            "pytest>=8.1.1",
-            "pytest-asyncio>=0.23.5",
-            "pytest-cov>=5.0.0",
-            "black>=24.0.0",
-            "isort>=5.13.0",
-            "flake8>=7.0.0",
-            "mypy>=1.9.0",
-            "pre-commit>=3.6.0",
-        ],
-        "openai": [
-            "openai>=1.0.0",
-        ],
-    },
     entry_points={
         "console_scripts": [
             "notioniq=notion_organizer:main",
         ],
     },
-    include_package_data=True,
-    package_data={
-        "": ["*.md", "*.txt", "*.yml", "*.yaml"],
-    },
-    zip_safe=False,
 )
+EOF < /dev/null
