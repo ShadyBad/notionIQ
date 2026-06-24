@@ -38,8 +38,8 @@ A premium AI-powered tool that analyzes your Notion workspace, classifies conten
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/anchovy.git
-cd anchovy
+git clone https://github.com/ShadyBad/notionIQ.git
+cd notionIQ
 
 # Create virtual environment
 python3 -m venv venv
