@@ -7,13 +7,15 @@ Main orchestrator script that coordinates all components
 import asyncio
 import json
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import click
+from rich import box
 from rich import print as rprint
-from rich.console import Console
+from rich.console import Console, Group
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.table import Table
@@ -42,10 +44,12 @@ class NotionOrganizer:
         optimization_level: OptimizationLevel = OptimizationLevel.MINIMAL,
         preferred_provider: Optional[str] = None,
         enable_cost_monitoring: bool = True,
+        verbose: bool = False,
     ):
         """Initialize the organizer"""
         self.settings = settings or get_settings()
         self.optimization_level = optimization_level
+        self.verbose = verbose
 
         # Initialize cost monitoring
         self.cost_monitor = None
@@ -116,24 +120,15 @@ class NotionOrganizer:
             dry_run: Run without making changes
         """
 
-        console.print(
-            Panel.fit(
-                "[bold cyan]🚀 NotionIQ - Intelligent Workspace Organizer[/bold cyan]\n"
-                f"[dim]Mode: {process_mode.upper()} | Analyzing your Notion workspace[/dim]",
-                border_style="cyan",
-            )
-        )
+        start_time = time.monotonic()
 
-        # Step 1: Workspace Analysis
+        # Workspace structure analysis
         if analyze_workspace:
-            console.print("\n[bold]Step 1: Analyzing Workspace Structure[/bold]")
             self.workspace_analysis = await self.workspace_analyzer.analyze_workspace(
                 deep_scan=self.settings.enable_workspace_scan
             )
 
-        # Step 2: Process Pages based on mode
-        console.print(f"\n[bold]Step 2: Processing Pages ({process_mode} mode)[/bold]")
-
+        # Process pages based on mode
         if process_mode == "workspace":
             # Process all databases in workspace
             await self._process_all_databases(
@@ -158,42 +153,37 @@ class NotionOrganizer:
             )
             return {}
 
-        # Step 3: Generate Recommendations
+        # Generate recommendations
         if create_recommendations:
-            console.print("\n[bold]Step 3: Generating Recommendations[/bold]")
             self._generate_recommendations()
 
-        # Step 4: Execute Recommendations (if enabled and not dry run)
+        # Execute recommendations (if enabled and not dry run)
         execution_results = {}
         if (
             not dry_run
             and self.report_data.get("recommendations")
             and (self.settings.enable_auto_organization or self.settings.auto_execute)
         ):
-
-            console.print("\n[bold]Step 4: Executing Recommendations[/bold]")
             execution_results = await self.executor.execute_recommendations(
                 self.report_data["recommendations"],
                 dry_run=dry_run,
                 interactive=not self.settings.auto_execute,
             )
 
-        # Step 5: Create Report
-        console.print("\n[bold]Step 5: Creating Report[/bold]")
+        # Create report
         self.report_data = self._create_report()
         if execution_results:
             self.report_data["execution_results"] = execution_results
 
-        # Step 6: Save Results
+        # Save results
         self._save_results()
 
-        # Step 7: Update Notion (if not dry run)
+        # Update Notion (if not dry run)
         if not dry_run and self.settings.enable_recommendations_page:
-            console.print("\n[bold]Step 6: Updating Notion Recommendations Page[/bold]")
             await self._update_notion_recommendations()
 
-        # Display summary
-        self._display_summary()
+        # Display the single run-summary panel
+        self._display_summary(elapsed=time.monotonic() - start_time)
 
         return self.report_data
 
@@ -205,7 +195,8 @@ class NotionOrganizer:
     ):
         """Process pages from all databases in the workspace"""
 
-        console.print(f"\n[dim]Scanning all databases in workspace...[/dim]")
+        if self.verbose:
+            console.print("\n[dim]Scanning all databases in workspace...[/dim]")
 
         # Get all databases from workspace
         # Use the already loaded workspace structure or scan it
@@ -223,7 +214,10 @@ class NotionOrganizer:
                 k: v for k, v in databases.items() if v.get("title") in target_databases
             }
 
-        console.print(f"[green]Found {len(databases)} databases to process[/green]")
+        if self.verbose:
+            console.print(
+                f"[green]Found {len(databases)} databases to process[/green]"
+            )
 
         with Progress(
             SpinnerColumn(),
@@ -279,27 +273,26 @@ class NotionOrganizer:
                                 self.analysis_results.append(result)
                                 total_pages_processed += 1
 
-                        console.print(
-                            f"  [dim]✓ {db_name}: {len(pages)} pages processed[/dim]"
-                        )
-                    else:
-                        console.print(f"  [dim]- {db_name}: No pages found[/dim]")
+                        if self.verbose:
+                            console.print(
+                                f"  [dim]{db_name}: {len(pages)} pages processed[/dim]"
+                            )
+                    elif self.verbose:
+                        console.print(f"  [dim]{db_name}: No pages found[/dim]")
 
                 except Exception as e:
                     logger.error(f"Error processing database {db_name}: {e}")
-                    console.print(f"  [red]✗ {db_name}: Error - {str(e)[:50]}[/red]")
+                    console.print(f"  [red]{db_name}: Error - {str(e)[:50]}[/red]")
 
                 progress.remove_task(task)
 
-        console.print(
-            f"\n[green]✓ Processed {total_pages_processed} pages across all databases[/green]"
-        )
         logger.info(f"Analyzed {total_pages_processed} pages from all databases")
 
     async def _process_page_hierarchy(self, page_id: str, max_depth: int = 10):
         """Process a specific page and all its children recursively"""
 
-        console.print(f"\n[dim]Processing page hierarchy from {page_id}...[/dim]")
+        if self.verbose:
+            console.print(f"\n[dim]Processing page hierarchy from {page_id}...[/dim]")
 
         processed_pages = []
 
@@ -335,16 +328,14 @@ class NotionOrganizer:
 
         await process_page_and_children(page_id)
 
-        console.print(
-            f"[green]✓ Processed {len(processed_pages)} pages in hierarchy[/green]"
-        )
         logger.info(f"Analyzed {len(processed_pages)} pages in hierarchy")
 
     async def _process_inbox_pages(self):
         """Process pages from the inbox database"""
 
         # Get pages from inbox
-        console.print(f"\n[dim]Fetching pages from Inbox database...[/dim]")
+        if self.verbose:
+            console.print("\n[dim]Fetching pages from Inbox database...[/dim]")
 
         try:
             inbox_pages = self.notion.get_database_pages(
@@ -358,7 +349,10 @@ class NotionOrganizer:
                 console.print("[yellow]No pages found in Inbox database[/yellow]")
                 return
 
-            console.print(f"[green]Found {len(inbox_pages)} pages to process[/green]")
+            if self.verbose:
+                console.print(
+                    f"[green]Found {len(inbox_pages)} pages to process[/green]"
+                )
 
             # Get full content for each page
             pages_with_content = []
@@ -446,13 +440,14 @@ class NotionOrganizer:
 
         self.report_data["recommendations"] = recommendations
 
-        # Display recommendation counts
-        console.print("\n[bold cyan]📊 Recommendation Summary:[/bold cyan]")
-        for category, items in recommendations.items():
-            if items:
-                console.print(
-                    f"  • {category.replace('_', ' ').title()}: {len(items)} pages"
-                )
+        # Display recommendation counts (verbose only; the summary panel covers the rest)
+        if self.verbose:
+            console.print("\n[bold cyan]Recommendation Summary:[/bold cyan]")
+            for category, items in recommendations.items():
+                if items:
+                    console.print(
+                        f"  - {category.replace('_', ' ').title()}: {len(items)} pages"
+                    )
 
     def _create_report(self) -> Dict[str, Any]:
         """Create comprehensive analysis report"""
@@ -598,7 +593,9 @@ class NotionOrganizer:
         with open(json_file, "w") as f:
             json.dump(self.report_data, f, indent=2, default=str)
 
-        console.print(f"\n[green]✅ Report saved to: {json_file}[/green]")
+        self._last_json_report = json_file
+        if self.verbose:
+            console.print(f"\n[green]Report saved to: {json_file}[/green]")
 
         # Save summary for quick review
         summary_file = self.settings.output_dir / f"summary_{timestamp}.txt"
@@ -956,54 +953,68 @@ class NotionOrganizer:
 
         return blocks
 
-    def _display_summary(self):
-        """Display final summary"""
+    def _display_summary(self, elapsed: float = 0.0):
+        """Render the single run-summary panel."""
 
-        console.print("\n" + "=" * 60)
-        console.print(
-            Panel.fit(
-                "[bold green]✨ Analysis Complete![/bold green]\n\n"
-                f"📊 Pages Analyzed: {len(self.analysis_results)}\n"
-                f"💯 Health Score: {self.workspace_analysis.get('health_score', 0):.1f}/100\n"
-                f"💡 Insights Generated: {len(self.report_data.get('insights', []))}\n"
-                f"📁 Report saved to: {self.settings.output_dir}",
-                border_style="green",
-            )
+        metrics = getattr(
+            getattr(self.ai_analyzer, "api_optimizer", None), "metrics", None
         )
+        panel = self._build_summary_panel(metrics, elapsed)
+        console.print()
+        console.print(panel)
 
-        # Display cost monitoring dashboard if enabled
-        if self.cost_monitor:
-            console.print("\n[bold cyan]💰 Cost Analytics:[/bold cyan]")
-            metrics = self.cost_monitor.get_current_metrics()
-            budget_status = self.cost_monitor.get_budget_status()
+    def _build_summary_panel(self, metrics: Any, elapsed: float) -> Panel:
+        """Compose one tasteful summary Panel from api_optimizer.metrics.
 
-            # Display key metrics
-            console.print(
-                f"  Total API Cost: [bold green]${metrics.total_cost:.2f}[/bold green]"
-            )
-            console.print(
-                f"  Cache Savings: [bold green]${metrics.cost_saved:.2f}[/bold green]"
-            )
-            console.print(
-                f"  Daily Budget Used: [bold yellow]{budget_status['daily']['percentage']:.1f}%[/bold yellow]"
-            )
-            console.print(
-                f"  Remaining Today: [bold cyan]${budget_status['daily']['remaining']:.2f}[/bold cyan]"
-            )
+        Reads metrics fields: total_cost, total_tokens, cache_hits, cache_misses.
+        Pages analyzed comes from the in-run results; top classifications from
+        the classification summary.
+        """
+        pages = len(self.analysis_results)
 
-        # Show top recommendations
-        recommendations = self.report_data.get("recommendations", {})
-        if recommendations.get("immediate_actions"):
-            console.print("\n[bold red]⚡ Immediate Actions Required:[/bold red]")
-            for item in recommendations["immediate_actions"][:3]:
-                console.print(f"  • {item['title']}: {item['action']}")
+        # Cache-hit rate from the optimizer's hit/miss counters.
+        cache_hits = getattr(metrics, "cache_hits", 0) or 0
+        cache_misses = getattr(metrics, "cache_misses", 0) or 0
+        lookups = cache_hits + cache_misses
+        cache_rate = (cache_hits / lookups * 100) if lookups else 0.0
 
-        if recommendations.get("suggested_moves"):
-            console.print("\n[bold yellow]📦 Suggested Moves:[/bold yellow]")
-            for item in recommendations["suggested_moves"][:5]:
-                console.print(
-                    f"  • Move '{item['title']}' to {item.get('suggested_database', 'appropriate database')}"
-                )
+        total_cost = getattr(metrics, "total_cost", 0.0) or 0.0
+        total_tokens = getattr(metrics, "total_tokens", 0) or 0
+
+        # Stats lines (label : value), right-aligned values.
+        stats = Table.grid(padding=(0, 2))
+        stats.add_column(justify="left", style="dim")
+        stats.add_column(justify="right", style="bold")
+        stats.add_row("Pages analyzed", str(pages))
+        stats.add_row("Cache hit rate", f"{cache_rate:.0f}%")
+        stats.add_row("Total cost", f"${total_cost:.4f}")
+        stats.add_row("Tokens", f"{total_tokens:,}")
+        stats.add_row("Elapsed", f"{elapsed:.1f}s")
+
+        renderables: List[Any] = [stats]
+
+        # Compact top-classifications table (top 5 by count).
+        doc_types = self._summarize_classifications().get("document_types", {})
+        top = sorted(doc_types.items(), key=lambda kv: kv[1], reverse=True)[:5]
+        if top:
+            table = Table(
+                box=box.SIMPLE_HEAD,
+                show_edge=False,
+                pad_edge=False,
+                padding=(0, 2, 0, 0),
+            )
+            table.add_column("Classification", style="cyan")
+            table.add_column("Pages", justify="right", style="bold")
+            for name, count in top:
+                table.add_row(str(name).replace("_", " ").title(), str(count))
+            renderables.append(table)
+
+        return Panel(
+            Group(*renderables),
+            title="[bold]NotionIQ[/bold]",
+            border_style="cyan",
+            expand=False,
+        )
 
 
 @click.command()
@@ -1074,6 +1085,12 @@ class NotionOrganizer:
     is_flag=True,
     help="Automatically execute recommendations without confirmation",
 )
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Show per-page classification and processing detail (quiet by default)",
+)
 def main(
     mode: str,
     target_databases: tuple,
@@ -1088,6 +1105,7 @@ def main(
     cost_monitor: bool,
     daily_budget: float,
     auto_execute: bool,
+    verbose: bool,
 ):
     """NotionIQ - Intelligent Notion Workspace Organizer"""
 
@@ -1153,6 +1171,7 @@ def main(
             optimization_level=optimization_level,
             preferred_provider=preferred_provider,
             enable_cost_monitoring=cost_monitor,
+            verbose=verbose,
         )
 
         # Update budget limits if cost monitoring is enabled
