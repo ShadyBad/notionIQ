@@ -47,36 +47,43 @@ source venv/bin/activate  # On macOS/Linux
 # Install dependencies
 pip install -r requirements.txt
 
+# Install the `notioniq` command (editable install)
+pip install -e .
+
 # Configure environment
 cp .env.example .env
 # Edit .env with your API keys
 ```
 
 ### Running the Application
+
+The `notioniq` command is installed by `pip install -e .`. The module form
+(`python notion_organizer.py ...`) still works as an alternative.
+
 ```bash
 # Full workspace analysis (default mode)
-python notion_organizer.py
+notioniq
 
 # Analyze entire workspace with batch limit
-python notion_organizer.py --mode workspace --batch-size 10
+notioniq --mode workspace --batch-size 10
 
 # Only process inbox database
-python notion_organizer.py --mode inbox
+notioniq --mode inbox
 
 # Process specific databases
-python notion_organizer.py --mode databases --target-databases "Projects" --target-databases "Tasks"
+notioniq --mode databases --target-databases "Projects" --target-databases "Tasks"
 
 # Analyze a page and all its children (directory mode)
-python notion_organizer.py --mode page --target-page "page-id-here"
+notioniq --mode page --target-page "page-id-here"
 
 # Skip certain databases
-python notion_organizer.py --skip-databases "Archives" --skip-databases "Templates"
+notioniq --skip-databases "Archives" --skip-databases "Templates"
 
 # Dry run (no changes to Notion)
-python notion_organizer.py --dry-run
+notioniq --dry-run
 
 # Help
-python notion_organizer.py --help
+notioniq --help
 ```
 
 ### Testing Individual Components

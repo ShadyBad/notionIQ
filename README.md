@@ -47,6 +47,9 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Install the `notioniq` command (editable install)
+pip install -e .
 ```
 
 ### 2. Configure API Keys
@@ -69,11 +72,13 @@ cp .env.example .env
 python quickstart.py
 
 # Or run directly (auto-configures by default)
-python notion_organizer.py
+notioniq
 
 # Test with a small batch first
-python notion_organizer.py --batch-size 5 --dry-run
+notioniq --batch-size 5 --dry-run
 ```
+
+> The module form (`python notion_organizer.py ...`) still works if you'd rather not install the `notioniq` command.
 
 ## 🤖 Multi-Provider AI Support
 
@@ -90,7 +95,7 @@ NotionIQ supports **Claude, ChatGPT, and Gemini** with automatic selection and c
 ### Automatic Provider Selection
 ```bash
 # NotionIQ automatically detects and uses the best available provider
-python notion_organizer.py
+notioniq
 
 # The system will:
 # 1. Detect all configured API keys
@@ -103,12 +108,12 @@ python notion_organizer.py
 ### Manual Provider Selection
 ```bash
 # Choose a specific provider
-python notion_organizer.py --provider claude    # Use Claude
-python notion_organizer.py --provider chatgpt   # Use ChatGPT  
-python notion_organizer.py --provider gemini    # Use Gemini
+notioniq --provider claude    # Use Claude
+notioniq --provider chatgpt   # Use ChatGPT  
+notioniq --provider gemini    # Use Gemini
 
 # Combine with optimization levels
-python notion_organizer.py --provider chatgpt --optimization minimal
+notioniq --provider chatgpt --optimization minimal
 ```
 
 ### Environment Configuration
@@ -144,10 +149,10 @@ export GEMINI_MODEL="pro"      # or "ultra" or "pro-vision"
 ### Basic Analysis (Full Workspace - Default)
 ```bash
 # Analyze your ENTIRE workspace (all databases and pages)
-python notion_organizer.py
+notioniq
 
 # Limit pages per database for testing
-python notion_organizer.py --batch-size 5
+notioniq --batch-size 5
 ```
 
 ### Processing Modes
@@ -155,46 +160,46 @@ python notion_organizer.py --batch-size 5
 #### Workspace Mode (Default)
 ```bash
 # Analyze entire workspace
-python notion_organizer.py --mode workspace
+notioniq --mode workspace
 
 # Skip certain databases
-python notion_organizer.py --mode workspace --skip-databases "Archives" --skip-databases "Templates"
+notioniq --mode workspace --skip-databases "Archives" --skip-databases "Templates"
 ```
 
 #### Inbox Mode
 ```bash
 # Only process your inbox database
-python notion_organizer.py --mode inbox --batch-size 20
+notioniq --mode inbox --batch-size 20
 ```
 
 #### Page Mode (Directory Processing)
 ```bash
 # Analyze a specific page and ALL its children/grandchildren
-python notion_organizer.py --mode page --target-page "your-page-id-here"
+notioniq --mode page --target-page "your-page-id-here"
 ```
 
 #### Database Mode
 ```bash
 # Process specific databases only
-python notion_organizer.py --mode databases --target-databases "Projects" --target-databases "Tasks"
+notioniq --mode databases --target-databases "Projects" --target-databases "Tasks"
 ```
 
 ### Dry Run (Preview Only)
 ```bash
 # See what would happen without making changes
-python notion_organizer.py --dry-run
+notioniq --dry-run
 ```
 
 ### Process Specific Number of Pages
 ```bash
 # Process only 10 pages per database
-python notion_organizer.py --batch-size 10
+notioniq --batch-size 10
 ```
 
 ### Quick Processing (Skip Workspace Scan)
 ```bash
 # Skip deep workspace analysis for faster processing
-python notion_organizer.py --skip-workspace
+notioniq --skip-workspace
 ```
 
 ## 📊 Understanding the Output
@@ -335,7 +340,7 @@ MIT License - see LICENSE file for details
 
 2. **Run Initial Analysis**
    ```bash
-   python notion_organizer.py --batch-size 5 --dry-run
+   notioniq --batch-size 5 --dry-run
    ```
 
 3. **Review Results**

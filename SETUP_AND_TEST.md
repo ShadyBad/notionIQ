@@ -14,7 +14,12 @@ venv\Scripts\activate  # On Windows
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
+
+# Install the `notioniq` command (editable install)
+pip install -e .
 ```
+
+> The module form (`python notion_organizer.py ...`) still works as an alternative to the `notioniq` command.
 
 ### 3. Configure Environment Variables
 ```bash
@@ -89,22 +94,22 @@ python workspace_analyzer.py
 ### Step 4: Dry Run Test
 ```bash
 # Test with small batch, no changes (inbox only)
-python notion_organizer.py --mode inbox --batch-size 1 --dry-run
+notioniq --mode inbox --batch-size 1 --dry-run
 
 # Test workspace mode with limit
-python notion_organizer.py --mode workspace --batch-size 2 --dry-run
+notioniq --mode workspace --batch-size 2 --dry-run
 ```
 
 ### Step 5: Full Test Run
 ```bash
 # Process 5 pages per database (full workspace)
-python notion_organizer.py --batch-size 5
+notioniq --batch-size 5
 
 # Process specific databases only
-python notion_organizer.py --mode databases --target-databases "Inbox" --batch-size 10
+notioniq --mode databases --target-databases "Inbox" --batch-size 10
 
 # Process a page and its children
-python notion_organizer.py --mode page --target-page "your-page-id"
+notioniq --mode page --target-page "your-page-id"
 ```
 
 ## 🔍 Verification Steps
@@ -186,7 +191,7 @@ You'll know everything is working when:
 ## 🎯 Next Steps
 
 Once testing is successful:
-1. Run on full inbox: `python notion_organizer.py`
+1. Run on full inbox: `notioniq`
 2. Review recommendations in JSON report
 3. Implement high-confidence suggestions
 4. Iterate and refine
