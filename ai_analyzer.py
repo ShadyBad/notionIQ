@@ -192,15 +192,18 @@ class UniversalAIAnalyzer:
         # Prepare content for analysis
         prepared_content = self._prepare_content(optimized_content)
 
-        # Generate optimized analysis prompt
-        prompt = self._create_analysis_prompt(prepared_content, workspace_context)
+        # Generate optimized analysis prompt (static system block + per-page user content)
+        system_text, user_text = self._create_analysis_prompt(
+            prepared_content, workspace_context
+        )
 
-        # Optimize prompt for minimal tokens
+        # Optimize only the per-page content for minimal tokens; the system block
+        # stays byte-stable so it can be served from the prompt cache.
         if self.optimization_level == OptimizationLevel.MINIMAL:
-            prompt = self.api_optimizer.token_optimizer.optimize_prompt(prompt)
+            user_text = self.api_optimizer.token_optimizer.optimize_prompt(user_text)
 
         # Get AI response (and real usage when the provider returns it)
-        response, usage = self._get_ai_response(prompt)
+        response, usage = self._get_ai_response(system_text, user_text)
 
         # Prefer real API usage (Claude); fall back to tiktoken for providers
         # that don't return a usage object (OpenAI, Gemini).
@@ -210,7 +213,9 @@ class UniversalAIAnalyzer:
             output_tokens = usage.output_tokens
             cache_read_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
         else:
-            input_tokens = self.api_optimizer.token_optimizer.count_tokens(prompt)
+            input_tokens = self.api_optimizer.token_optimizer.count_tokens(
+                system_text + "\n\n" + user_text
+            )
             output_tokens = self.api_optimizer.token_optimizer.count_tokens(response)
 
         self.api_optimizer.record_api_usage(
@@ -250,25 +255,27 @@ class UniversalAIAnalyzer:
     @retry(
         stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10)
     )
-    def _get_ai_response(self, prompt: str) -> Tuple[str, Any]:
+    def _get_ai_response(self, system_text: str, user_text: str) -> Tuple[str, Any]:
         """Get response from AI provider with retry logic.
 
-        Returns (text, usage). ``usage`` is the real ``message.usage`` object for
-        the Claude path and ``None`` for providers that don't return one (OpenAI,
-        Gemini), in which case the caller falls back to tiktoken counts.
+        Takes the static ``system_text`` (cacheable taxonomy/instructions) and the
+        per-page ``user_text`` separately. Returns (text, usage). ``usage`` is the
+        real ``message.usage`` object for the Claude path and ``None`` for providers
+        that don't return one (OpenAI, Gemini), in which case the caller falls back
+        to tiktoken counts.
         """
 
         if self.provider_type == "claude":
-            return self._get_claude_response(prompt)
+            return self._get_claude_response(system_text, user_text)
         elif self.provider_type == "openai":
-            return self._get_openai_response(prompt), None
+            return self._get_openai_response(system_text, user_text), None
         elif self.provider_type == "gemini":
-            return self._get_gemini_response(prompt), None
+            return self._get_gemini_response(system_text, user_text), None
         else:
             raise ValueError(f"Unknown provider type: {self.provider_type}")
 
-    def _get_claude_response(self, prompt: str) -> Tuple[str, Any]:
-        """Get response from Claude, returning (text, usage)"""
+    def _get_claude_response(self, system_text: str, user_text: str) -> Tuple[str, Any]:
+        """Get response from Claude with a cached system prompt, returning (text, usage)"""
         try:
             message = self.client.messages.create(
                 model=self.ai_config["model"],
@@ -279,7 +286,16 @@ class UniversalAIAnalyzer:
                 ),
                 # Haiku 4.5 rejects effort/output_config; temperature is supported
                 temperature=0.3,
-                messages=[{"role": "user", "content": prompt}],
+                # Cache pays off only when system_text >= 4096 tokens (Haiku 4.5
+                # min prefix); verify via usage.cache_read_input_tokens.
+                system=[
+                    {
+                        "type": "text",
+                        "text": system_text,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                messages=[{"role": "user", "content": user_text}],
             )
 
             response = message.content[0].text
@@ -290,7 +306,7 @@ class UniversalAIAnalyzer:
             logger.error(f"Error getting Claude response: {e}")
             raise
 
-    def _get_openai_response(self, prompt: str) -> str:
+    def _get_openai_response(self, system_text: str, user_text: str) -> str:
         """Get response from ChatGPT/OpenAI"""
         try:
             response = self.client.chat.completions.create(
@@ -298,9 +314,12 @@ class UniversalAIAnalyzer:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert Notion workspace organizer. Respond only with valid JSON.",
+                        "content": (
+                            "You are an expert Notion workspace organizer. "
+                            "Respond only with valid JSON.\n\n" + system_text
+                        ),
                     },
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": user_text},
                 ],
                 temperature=0.3,
                 max_tokens=(
@@ -323,12 +342,16 @@ class UniversalAIAnalyzer:
             logger.error(f"Error getting ChatGPT response: {e}")
             raise
 
-    def _get_gemini_response(self, prompt: str) -> str:
+    def _get_gemini_response(self, system_text: str, user_text: str) -> str:
         """Get response from Gemini"""
         try:
-            # Add JSON instruction to prompt for Gemini
+            # Gemini has no separate system channel here; concatenate the static
+            # instructions with the per-page content.
             gemini_prompt = (
-                prompt + "\n\nIMPORTANT: Respond ONLY with valid JSON, no other text."
+                system_text
+                + "\n\n"
+                + user_text
+                + "\n\nIMPORTANT: Respond ONLY with valid JSON, no other text."
             )
 
             response = self.client.generate_content(gemini_prompt)
@@ -386,14 +409,16 @@ class UniversalAIAnalyzer:
         self,
         prepared_content: Dict[str, Any],
         workspace_context: Optional[Dict[str, Any]] = None,
-    ) -> str:
-        """Create analysis prompt for AI"""
+    ) -> Tuple[str, str]:
+        """Create the analysis prompt for AI, split into (system_text, user_text).
 
-        # Build the main prompt (simplified for all providers)
-        prompt = f"""Analyze this Notion page and provide classification and recommendations.
+        ``system_text`` is the fixed taxonomy / classification rules / JSON-schema
+        instruction — identical across every page, so it can be cached. ``user_text``
+        carries only this page's title and content.
+        """
 
-Page Title: {prepared_content['title']}
-Content: {prepared_content['content'][:1000]}
+        # Static taxonomy + output contract — identical across pages (cacheable).
+        system_text = """Analyze the provided Notion page and provide classification and recommendations.
 
 Provide a JSON response with:
 - classification: primary_type (task/project/meeting_note/idea/journal/reference/archive), confidence (0-1)
@@ -402,7 +427,11 @@ Provide a JSON response with:
 
 Respond with valid JSON only."""
 
-        return prompt
+        # Per-page dynamic content.
+        user_text = f"""Page Title: {prepared_content['title']}
+Content: {prepared_content['content'][:1000]}"""
+
+        return system_text, user_text
 
     def _create_skipped_response(self, page_content: Dict[str, Any]) -> Dict[str, Any]:
         """Create a response for skipped pages"""
