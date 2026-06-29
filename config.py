@@ -34,9 +34,9 @@ class LogLevel(str, Enum):
 class AIModel(str, Enum):
     """Supported AI models"""
 
-    CLAUDE_3_OPUS = "claude-3-opus-20240229"
-    CLAUDE_3_SONNET = "claude-3-sonnet-20240229"
-    CLAUDE_3_HAIKU = "claude-3-haiku-20240307"
+    CLAUDE_HAIKU = "claude-haiku-4-5"
+    CLAUDE_SONNET = "claude-sonnet-4-6"
+    CLAUDE_OPUS = "claude-opus-4-8"
     GPT_4_TURBO = "gpt-4-turbo-preview"
     GPT_4 = "gpt-4"
 
@@ -66,7 +66,8 @@ class Settings(BaseSettings):
         None, description="Anthropic API key for Claude"
     )
     claude_model: AIModel = Field(
-        AIModel.CLAUDE_3_OPUS, description="Claude model to use"
+        AIModel.CLAUDE_HAIKU,
+        description="Claude model to use (Haiku is the cost-optimal default)",
     )
     openai_api_key: Optional[str] = Field(None, description="Optional OpenAI API key")
     openai_model: str = Field("gpt-4-turbo-preview", description="OpenAI model to use")

@@ -25,9 +25,9 @@ class AIModel(Enum):
     """Available AI models with their providers"""
 
     # Claude models
-    CLAUDE_3_OPUS = ("claude-3-opus-20240229", AIProvider.CLAUDE)
-    CLAUDE_3_SONNET = ("claude-3-sonnet-20240229", AIProvider.CLAUDE)
-    CLAUDE_3_HAIKU = ("claude-3-haiku-20240307", AIProvider.CLAUDE)
+    CLAUDE_OPUS = ("claude-opus-4-8", AIProvider.CLAUDE)
+    CLAUDE_SONNET = ("claude-sonnet-4-6", AIProvider.CLAUDE)
+    CLAUDE_HAIKU = ("claude-haiku-4-5", AIProvider.CLAUDE)
 
     # ChatGPT models
     GPT_4_TURBO = ("gpt-4-turbo-preview", AIProvider.CHATGPT)
@@ -60,33 +60,33 @@ class AIProviderManager:
 
     # Model information database
     MODEL_INFO = {
-        AIModel.CLAUDE_3_OPUS: ModelInfo(
-            name="Claude 3 Opus",
+        AIModel.CLAUDE_OPUS: ModelInfo(
+            name="Claude Opus 4.8",
             provider=AIProvider.CLAUDE,
-            cost_per_1m_input=15.00,
-            cost_per_1m_output=75.00,
+            cost_per_1m_input=5.00,
+            cost_per_1m_output=25.00,
             quality_score=10,
-            speed_score=7,
-            context_window=200000,
+            speed_score=6,
+            context_window=1000000,
             supports_json=True,
         ),
-        AIModel.CLAUDE_3_SONNET: ModelInfo(
-            name="Claude 3 Sonnet",
+        AIModel.CLAUDE_SONNET: ModelInfo(
+            name="Claude Sonnet 4.6",
             provider=AIProvider.CLAUDE,
             cost_per_1m_input=3.00,
             cost_per_1m_output=15.00,
             quality_score=9,
             speed_score=8,
-            context_window=200000,
+            context_window=1000000,
             supports_json=True,
         ),
-        AIModel.CLAUDE_3_HAIKU: ModelInfo(
-            name="Claude 3 Haiku",
+        AIModel.CLAUDE_HAIKU: ModelInfo(
+            name="Claude Haiku 4.5",
             provider=AIProvider.CLAUDE,
-            cost_per_1m_input=0.25,
-            cost_per_1m_output=1.25,
-            quality_score=7,
-            speed_score=9,
+            cost_per_1m_input=1.00,
+            cost_per_1m_output=5.00,
+            quality_score=8,
+            speed_score=10,
             context_window=200000,
             supports_json=True,
         ),
@@ -173,9 +173,9 @@ class AIProviderManager:
             providers[AIProvider.CLAUDE] = {
                 "api_key": settings.anthropic_api_key,
                 "available_models": [
-                    AIModel.CLAUDE_3_OPUS,
-                    AIModel.CLAUDE_3_SONNET,
-                    AIModel.CLAUDE_3_HAIKU,
+                    AIModel.CLAUDE_OPUS,
+                    AIModel.CLAUDE_SONNET,
+                    AIModel.CLAUDE_HAIKU,
                 ],
                 "preferred_model": self._get_preferred_claude_model(),
             }
@@ -214,11 +214,11 @@ class AIProviderManager:
         """Get user's preferred Claude model from environment"""
         model_hint = os.getenv("CLAUDE_MODEL", "").lower()
         if "haiku" in model_hint:
-            return AIModel.CLAUDE_3_HAIKU
+            return AIModel.CLAUDE_HAIKU
         elif "sonnet" in model_hint:
-            return AIModel.CLAUDE_3_SONNET
+            return AIModel.CLAUDE_SONNET
         else:
-            return AIModel.CLAUDE_3_OPUS  # Default to best
+            return AIModel.CLAUDE_OPUS  # Default to best
 
     def _get_preferred_openai_model(self) -> AIModel:
         """Get user's preferred OpenAI model from environment"""
