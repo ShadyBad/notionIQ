@@ -34,12 +34,19 @@ class UniversalAIAnalyzer:
         self.settings = settings or get_settings()
         self.optimization_level = optimization_level
 
-        # Initialize API optimizer for minimal token usage
-        self.api_optimizer = APIOptimizer(self.settings, optimization_level)
-        logger.info(f"API Optimization Level: {optimization_level.value}")
-
-        # Get AI provider configuration
+        # Get AI provider configuration first so pricing can be sourced from it
         self.ai_config = self._configure_ai_provider(preferred_provider)
+
+        # Initialize API optimizer for minimal token usage, using the selected
+        # model's pricing as the single source of truth for cost.
+        model_info = self.ai_config["model_info"]
+        self.api_optimizer = APIOptimizer(
+            self.settings,
+            optimization_level,
+            input_cost_per_1m=model_info["cost_per_1m_input"],
+            output_cost_per_1m=model_info["cost_per_1m_output"],
+        )
+        logger.info(f"API Optimization Level: {optimization_level.value}")
 
         # Initialize the appropriate client
         self.client = self._initialize_client()
@@ -192,23 +199,31 @@ class UniversalAIAnalyzer:
         if self.optimization_level == OptimizationLevel.MINIMAL:
             prompt = self.api_optimizer.token_optimizer.optimize_prompt(prompt)
 
-        # Count input tokens for metrics
-        input_tokens = self.api_optimizer.token_optimizer.count_tokens(prompt)
+        # Get AI response (and real usage when the provider returns it)
+        response, usage = self._get_ai_response(prompt)
 
-        # Get AI response
-        response = self._get_ai_response(prompt)
+        # Prefer real API usage (Claude); fall back to tiktoken for providers
+        # that don't return a usage object (OpenAI, Gemini).
+        cache_read_tokens = 0
+        if usage is not None:
+            input_tokens = usage.input_tokens
+            output_tokens = usage.output_tokens
+            cache_read_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
+        else:
+            input_tokens = self.api_optimizer.token_optimizer.count_tokens(prompt)
+            output_tokens = self.api_optimizer.token_optimizer.count_tokens(response)
 
-        # Count output tokens and record usage
-        output_tokens = self.api_optimizer.token_optimizer.count_tokens(response)
         self.api_optimizer.record_api_usage(
             input_tokens, output_tokens, from_cache=False
         )
 
         cost = self.api_optimizer.token_optimizer.calculate_cost(
-            input_tokens, output_tokens
+            input_tokens, output_tokens, cache_read_tokens
         )
         logger.info(
-            f"API Call - Provider: {self.provider_type}, Tokens: {input_tokens}→{output_tokens}, Cost: ${cost:.4f}"
+            f"API Call - Provider: {self.provider_type}, "
+            f"Tokens: {input_tokens}→{output_tokens}, "
+            f"Cache reads: {cache_read_tokens}, Cost: ${cost:.4f}"
         )
 
         # Parse response
@@ -235,20 +250,25 @@ class UniversalAIAnalyzer:
     @retry(
         stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10)
     )
-    def _get_ai_response(self, prompt: str) -> str:
-        """Get response from AI provider with retry logic"""
+    def _get_ai_response(self, prompt: str) -> Tuple[str, Any]:
+        """Get response from AI provider with retry logic.
+
+        Returns (text, usage). ``usage`` is the real ``message.usage`` object for
+        the Claude path and ``None`` for providers that don't return one (OpenAI,
+        Gemini), in which case the caller falls back to tiktoken counts.
+        """
 
         if self.provider_type == "claude":
             return self._get_claude_response(prompt)
         elif self.provider_type == "openai":
-            return self._get_openai_response(prompt)
+            return self._get_openai_response(prompt), None
         elif self.provider_type == "gemini":
-            return self._get_gemini_response(prompt)
+            return self._get_gemini_response(prompt), None
         else:
             raise ValueError(f"Unknown provider type: {self.provider_type}")
 
-    def _get_claude_response(self, prompt: str) -> str:
-        """Get response from Claude"""
+    def _get_claude_response(self, prompt: str) -> Tuple[str, Any]:
+        """Get response from Claude, returning (text, usage)"""
         try:
             message = self.client.messages.create(
                 model=self.ai_config["model"],
@@ -257,13 +277,14 @@ class UniversalAIAnalyzer:
                     if self.optimization_level == OptimizationLevel.MINIMAL
                     else 2000
                 ),
+                # Haiku 4.5 rejects effort/output_config; temperature is supported
                 temperature=0.3,
                 messages=[{"role": "user", "content": prompt}],
             )
 
             response = message.content[0].text
             logger.debug("Received response from Claude")
-            return response
+            return response, message.usage
 
         except Exception as e:
             logger.error(f"Error getting Claude response: {e}")

@@ -53,21 +53,22 @@ class APIUsageMetrics:
 class TokenOptimizer:
     """Optimizes content to minimize token usage"""
 
-    # Claude 3 Opus pricing (per 1M tokens)
-    INPUT_COST_PER_1M = 15.00  # $15 per 1M input tokens
-    OUTPUT_COST_PER_1M = 75.00  # $75 per 1M output tokens
-
     def __init__(
-        self, optimization_level: OptimizationLevel = OptimizationLevel.MINIMAL
+        self,
+        optimization_level: OptimizationLevel = OptimizationLevel.MINIMAL,
+        input_cost_per_1m: float = 1.00,
+        output_cost_per_1m: float = 5.00,
     ):
-        """Initialize token optimizer"""
+        """Initialize token optimizer with the selected model's pricing"""
         self.optimization_level = optimization_level
+        self.input_cost_per_1m = input_cost_per_1m
+        self.output_cost_per_1m = output_cost_per_1m
         self.encoder = None
         if tiktoken:
             try:
                 # Use cl100k_base encoding (similar to Claude's tokenizer)
                 self.encoder = tiktoken.get_encoding("cl100k_base")
-            except:
+            except Exception:
                 logger.warning("Failed to initialize tiktoken encoder")
 
     def count_tokens(self, text: str) -> int:
@@ -172,11 +173,14 @@ class TokenOptimizer:
 
         return prompt
 
-    def calculate_cost(self, input_tokens: int, output_tokens: int) -> float:
-        """Calculate API cost in USD"""
-        input_cost = (input_tokens / 1_000_000) * self.INPUT_COST_PER_1M
-        output_cost = (output_tokens / 1_000_000) * self.OUTPUT_COST_PER_1M
-        return input_cost + output_cost
+    def calculate_cost(
+        self, input_tokens: int, output_tokens: int, cache_read_tokens: int = 0
+    ) -> float:
+        """Calculate API cost in USD using the selected model's rates"""
+        input_cost = (input_tokens / 1_000_000) * self.input_cost_per_1m
+        output_cost = (output_tokens / 1_000_000) * self.output_cost_per_1m
+        cache_cost = (cache_read_tokens / 1_000_000) * self.input_cost_per_1m * 0.1
+        return input_cost + output_cost + cache_cost
 
 
 class SmartCache:
@@ -430,13 +434,19 @@ class APIOptimizer:
         self,
         settings,
         optimization_level: OptimizationLevel = OptimizationLevel.MINIMAL,
+        input_cost_per_1m: float = 1.00,
+        output_cost_per_1m: float = 5.00,
     ):
-        """Initialize API optimizer"""
+        """Initialize API optimizer with the selected model's pricing"""
         self.settings = settings
         self.optimization_level = optimization_level
 
         # Initialize components
-        self.token_optimizer = TokenOptimizer(optimization_level)
+        self.token_optimizer = TokenOptimizer(
+            optimization_level,
+            input_cost_per_1m=input_cost_per_1m,
+            output_cost_per_1m=output_cost_per_1m,
+        )
         self.smart_cache = SmartCache(
             settings.data_dir / "smart_cache",
             ttl_hours=settings.cache_ttl_hours * 7,  # Longer TTL for smart cache

@@ -63,15 +63,12 @@ class CostMetrics:
 
 
 class CostMonitor:
-    """Monitor and track API costs in real-time"""
+    """Monitor and track API costs in real-time.
 
-    # Pricing per 1M tokens (Claude 3 Opus)
-    CLAUDE_INPUT_COST = 15.00  # $15 per 1M input tokens
-    CLAUDE_OUTPUT_COST = 75.00  # $75 per 1M output tokens
-
-    # OpenAI GPT-4 pricing
-    GPT4_INPUT_COST = 30.00  # $30 per 1M input tokens
-    GPT4_OUTPUT_COST = 60.00  # $60 per 1M output tokens
+    Pricing is NOT hardcoded here. Per-1M-token rates are passed in by the
+    caller, sourced from the selected model (ai_providers.MODEL_INFO via
+    ai_config["model_info"]), so there is a single source of truth for cost.
+    """
 
     def __init__(self, data_dir: Path, budget_limits: Optional[Dict] = None):
         """Initialize cost monitor"""
@@ -96,28 +93,31 @@ class CostMonitor:
         self._load_history()
 
     def calculate_cost(
-        self, input_tokens: int, output_tokens: int, model: str = "claude-3-opus"
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        input_cost_per_1m: float,
+        output_cost_per_1m: float,
+        cache_read_tokens: int = 0,
     ) -> float:
-        """Calculate cost for token usage"""
+        """Calculate cost for token usage using the selected model's rates.
 
-        if "claude" in model.lower():
-            input_cost = (input_tokens / 1_000_000) * self.CLAUDE_INPUT_COST
-            output_cost = (output_tokens / 1_000_000) * self.CLAUDE_OUTPUT_COST
-        elif "gpt-4" in model.lower():
-            input_cost = (input_tokens / 1_000_000) * self.GPT4_INPUT_COST
-            output_cost = (output_tokens / 1_000_000) * self.GPT4_OUTPUT_COST
-        else:
-            # Default to Claude pricing
-            input_cost = (input_tokens / 1_000_000) * self.CLAUDE_INPUT_COST
-            output_cost = (output_tokens / 1_000_000) * self.CLAUDE_OUTPUT_COST
-
-        return input_cost + output_cost
+        Rates are supplied by the caller (single source of truth in
+        ai_providers.MODEL_INFO); cache reads are billed at 0.1x the input rate.
+        """
+        input_cost = (input_tokens / 1_000_000) * input_cost_per_1m
+        output_cost = (output_tokens / 1_000_000) * output_cost_per_1m
+        cache_cost = (cache_read_tokens / 1_000_000) * input_cost_per_1m * 0.1
+        return input_cost + output_cost + cache_cost
 
     def record_usage(
         self,
         input_tokens: int,
         output_tokens: int,
-        model: str = "claude-3-opus",
+        input_cost_per_1m: float,
+        output_cost_per_1m: float,
+        model: str,
+        cache_read_tokens: int = 0,
         cached: bool = False,
         page_id: Optional[str] = None,
         page_title: Optional[str] = None,
@@ -125,7 +125,13 @@ class CostMonitor:
         """Record API token usage"""
 
         cost = (
-            self.calculate_cost(input_tokens, output_tokens, model)
+            self.calculate_cost(
+                input_tokens,
+                output_tokens,
+                input_cost_per_1m,
+                output_cost_per_1m,
+                cache_read_tokens,
+            )
             if not cached
             else 0.0
         )
@@ -555,10 +561,10 @@ if __name__ == "__main__":
     # Test the cost monitor
     monitor = CostMonitor(Path("data"))
 
-    # Simulate some usage
-    monitor.record_usage(500, 200, "claude-3-opus")
-    monitor.record_usage(300, 150, "claude-3-opus", cached=True)
-    monitor.record_usage(800, 400, "gpt-4")
+    # Simulate some usage (rates sourced from the selected model; Haiku 4.5 here)
+    monitor.record_usage(500, 200, 1.00, 5.00, "claude-haiku-4-5")
+    monitor.record_usage(300, 150, 1.00, 5.00, "claude-haiku-4-5", cached=True)
+    monitor.record_usage(800, 400, 3.00, 15.00, "claude-sonnet-4-6")
 
     # Display dashboard
     monitor.display_dashboard()
