@@ -91,6 +91,10 @@ class Settings(BaseSettings):
     cache_ttl_hours: int = Field(
         24, ge=1, le=168, description="Cache time-to-live in hours"
     )
+    prompt_version: str = Field(
+        "v1",
+        description="Bump to invalidate cached analyses when the prompt/taxonomy changes",
+    )
 
     # Rate Limiting
     rate_limit_requests_per_second: float = Field(

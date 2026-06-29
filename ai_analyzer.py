@@ -505,6 +505,8 @@ Content: {prepared_content['content'][:1000]}"""
                     "title": page_content.get("title"),
                     "content": page_content.get("content"),
                     "properties": props,
+                    "last_edited_time": page_content.get("last_edited_time"),
+                    "prompt_version": self.settings.prompt_version,
                 },
                 sort_keys=True,
                 default=str,
