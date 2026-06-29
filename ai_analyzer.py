@@ -169,14 +169,6 @@ class UniversalAIAnalyzer:
             )
             return self._create_skipped_response(page_content)
 
-        # Check smart cache for similar content
-        cached_result = self.api_optimizer.check_cache_and_similarity(page_content)
-        if cached_result:
-            cached_result["page_id"] = page_content.get("id")
-            cached_result["page_title"] = page_content.get("title", "Untitled")
-            cached_result["from_cache"] = True
-            return cached_result
-
         # Generate cache key for exact match
         cache_key = self._generate_cache_key(page_content)
 
@@ -242,13 +234,11 @@ class UniversalAIAnalyzer:
         analysis["ai_provider"] = self.provider_type
         analysis["ai_model"] = self.ai_config["model_info"]["name"]
 
-        # Cache result in both caches
+        # Cache result by exact content hash (no similarity cache: it could
+        # return another page's analysis).
         if self.settings.enable_caching:
             self.response_cache[cache_key] = analysis
             self._save_cache()
-
-            # Store in smart cache for similarity detection
-            self.api_optimizer.smart_cache.store(page_content, analysis)
 
         return analysis
 

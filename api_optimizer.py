@@ -447,10 +447,6 @@ class APIOptimizer:
             input_cost_per_1m=input_cost_per_1m,
             output_cost_per_1m=output_cost_per_1m,
         )
-        self.smart_cache = SmartCache(
-            settings.data_dir / "smart_cache",
-            ttl_hours=settings.cache_ttl_hours * 7,  # Longer TTL for smart cache
-        )
         self.request_batcher = RequestBatcher()
         self.metrics = APIUsageMetrics()
 
@@ -508,20 +504,6 @@ class APIOptimizer:
             optimized.pop(field, None)
 
         return optimized
-
-    def check_cache_and_similarity(
-        self, content: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
-        """Check cache and find similar analyzed content"""
-        # Check smart cache
-        cached_result = self.smart_cache.get_similar_cached(content)
-        if cached_result:
-            self.metrics.cache_hits += 1
-            logger.info("Using cached/similar result - no API call needed")
-            return cached_result
-
-        self.metrics.cache_misses += 1
-        return None
 
     def should_skip_page(self, page_content: Dict[str, Any]) -> bool:
         """
