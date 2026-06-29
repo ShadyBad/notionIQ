@@ -1,6 +1,6 @@
 # Core dependencies
 notion-client==2.2.1
-anthropic==0.21.3
+anthropic>=0.40,<1.0
 python-dotenv==1.0.1
 pydantic==2.6.4
 pydantic-settings==2.2.1
@@ -47,7 +47,7 @@ types-requests==2.31.0
 
 # AI Provider Libraries (install what you need)
 # Claude/Anthropic
-anthropic==0.21.3
+anthropic>=0.40,<1.0
 
 # ChatGPT/OpenAI (optional)
 openai==1.14.0
