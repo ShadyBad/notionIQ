@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     notion_recommendations_parent_id: Optional[str] = Field(
         None, description="Parent page or database ID for recommendations page"
     )
-    notion_api_version: str = Field("2022-06-28", description="Notion API version")
+    notion_api_version: str = Field("2025-09-03", description="Notion API version")
 
     # AI Configuration
     anthropic_api_key: Optional[str] = Field(

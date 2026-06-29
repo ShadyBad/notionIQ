@@ -241,10 +241,15 @@ class NotionOrganizer:
                 task = progress.add_task(f"Processing {db_name}...", total=None)
 
                 try:
-                    # Get pages from this database
-                    pages = self.notion.get_database_pages(
-                        db_id, limit=max_pages_per_db or self.settings.batch_size
-                    )
+                    # Reuse pages already fetched during the workspace scan to
+                    # avoid re-querying the database (the scan/analyze
+                    # double-fetch). Fall back to a fresh query only when the
+                    # scan didn't retain payloads (e.g. structure loaded from
+                    # the cached workspace_structure.json).
+                    limit = max_pages_per_db or self.settings.batch_size
+                    pages = self.notion.get_scanned_pages(db_id, limit=limit)
+                    if pages is None:
+                        pages = self.notion.get_database_pages(db_id, limit=limit)
 
                     if pages:
                         # Process pages like we do for inbox

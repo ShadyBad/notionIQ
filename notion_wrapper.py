@@ -41,6 +41,9 @@ class NotionAdvancedClient:
         self.workspace_structure = None
         self.databases = {}
         self.page_count = 0
+        # Page payloads fetched during scan_workspace, keyed by database id.
+        # Reused by the analysis path to avoid re-querying each database.
+        self.scanned_pages: Dict[str, List[Dict[str, Any]]] = {}
 
         logger.info("NotionAdvancedClient initialized")
 
@@ -295,6 +298,9 @@ class NotionAdvancedClient:
             "scan_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
+        # Reset retained page payloads for this scan.
+        self.scanned_pages = {}
+
         # Search for all databases
         try:
             response = self.client.search(
@@ -316,8 +322,10 @@ class NotionAdvancedClient:
                     "page_count": 0,  # Will be updated
                 }
 
-                # Count pages in database with proper pagination
-                page_count = 0
+                # Fetch pages once during the scan and retain the payloads so
+                # the analysis path can reuse them instead of re-querying the
+                # same database (eliminates the scan/analyze double-fetch).
+                db_pages: List[Dict[str, Any]] = []
                 has_more = True
                 next_cursor = None
 
@@ -325,19 +333,21 @@ class NotionAdvancedClient:
                     try:
                         query_params = {
                             "database_id": db_id,
-                            "page_size": 100,  # Max page size for counting
+                            "page_size": 100,  # Max page size
                         }
                         if next_cursor:
                             query_params["start_cursor"] = next_cursor
 
                         response = self.client.databases.query(**query_params)
-                        page_count += len(response.get("results", []))
+                        db_pages.extend(response.get("results", []))
                         has_more = response.get("has_more", False)
                         next_cursor = response.get("next_cursor")
                     except Exception as e:
-                        logger.warning(f"Error counting pages in database {db_id}: {e}")
+                        logger.warning(f"Error fetching pages in database {db_id}: {e}")
                         break
 
+                self.scanned_pages[db_id] = db_pages
+                page_count = len(db_pages)
                 workspace_data["databases"][db_id]["page_count"] = page_count
                 workspace_data["total_pages"] += page_count
 
@@ -354,6 +364,21 @@ class NotionAdvancedClient:
         self._save_workspace_structure()
 
         return workspace_data
+
+    def get_scanned_pages(
+        self, database_id: str, limit: Optional[int] = None
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Return page payloads retained during the last ``scan_workspace``.
+
+        Lets the analysis path reuse pages already fetched by the scan instead
+        of issuing a redundant ``databases.query``. Returns ``None`` if the
+        database was not part of the scan (e.g. structure loaded from cache),
+        in which case callers should fall back to ``get_database_pages``.
+        """
+        if database_id not in self.scanned_pages:
+            return None
+        pages = self.scanned_pages[database_id]
+        return pages[:limit] if limit else pages
 
     def _extract_database_title(self, database: Dict[str, Any]) -> str:
         """Extract database title"""
