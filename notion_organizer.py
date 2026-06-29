@@ -46,11 +46,13 @@ class NotionOrganizer:
         preferred_provider: Optional[str] = None,
         enable_cost_monitoring: bool = True,
         verbose: bool = False,
+        output_format: str = "json",
     ):
         """Initialize the organizer"""
         self.settings = settings or get_settings()
         self.optimization_level = optimization_level
         self.verbose = verbose
+        self.output_format = output_format
 
         # Initialize cost monitoring
         self.cost_monitor = None
@@ -589,14 +591,28 @@ class NotionOrganizer:
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Save JSON report
-        json_file = self.settings.output_dir / f"analysis_report_{timestamp}.json"
-        with open(json_file, "w") as f:
-            json.dump(self.report_data, f, indent=2, default=str)
+        # Select report format(s): json (default), markdown, or both.
+        write_json = self.output_format in ("json", "both")
+        write_markdown = self.output_format in ("markdown", "both")
 
-        self._last_json_report = json_file
-        if self.verbose:
-            console.print(f"\n[green]Report saved to: {json_file}[/green]")
+        # Save JSON report
+        if write_json:
+            json_file = self.settings.output_dir / f"analysis_report_{timestamp}.json"
+            with open(json_file, "w") as f:
+                json.dump(self.report_data, f, indent=2, default=str)
+
+            self._last_json_report = json_file
+            if self.verbose:
+                console.print(f"\n[green]Report saved to: {json_file}[/green]")
+
+        # Save human-readable Markdown report
+        if write_markdown:
+            md_file = _write_markdown_report(
+                self.report_data, self.settings.output_dir, timestamp=timestamp
+            )
+            self._last_markdown_report = md_file
+            if self.verbose:
+                console.print(f"[green]Markdown report saved to: {md_file}[/green]")
 
         # Save summary for quick review
         summary_file = self.settings.output_dir / f"summary_{timestamp}.txt"
@@ -1139,6 +1155,13 @@ def main():
     default=False,
     help="Show per-page classification and processing detail (quiet by default)",
 )
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["json", "markdown", "both"]),
+    default="json",
+    help="Report output format: json (default), markdown, or both",
+)
 def run(
     mode: str,
     target_databases: tuple,
@@ -1154,6 +1177,7 @@ def run(
     daily_budget: float,
     auto_execute: bool,
     verbose: bool,
+    output_format: str,
 ):
     """Analyze a Notion workspace (default command)."""
 
@@ -1220,6 +1244,7 @@ def run(
             preferred_provider=preferred_provider,
             enable_cost_monitoring=cost_monitor,
             verbose=verbose,
+            output_format=output_format,
         )
 
         # Update budget limits if cost monitoring is enabled
@@ -1245,6 +1270,118 @@ def run(
         console.print(f"[bold red]Error: {e}[/bold red]")
         logger.exception("Fatal error in main")
         sys.exit(1)
+
+
+def _write_markdown_report(
+    report: Dict[str, Any],
+    output_dir: Path,
+    timestamp: Optional[str] = None,
+) -> Path:
+    """Write a human-readable Markdown summary of an analysis report.
+
+    Pure and testable: takes the in-memory ``report`` dict (the same shape
+    produced by :meth:`NotionOrganizer._create_report`) plus an output
+    directory, writes ``analysis_report_{timestamp}.md``, and returns the
+    written path. Performs no network or Notion calls.
+
+    Sections:
+      - title + generated-at
+      - Summary counts (databases, pages analyzed, health score)
+      - Classifications table (document type -> count)
+      - Per-category recommendations table (category -> page count)
+      - Top actions (highest-confidence recommended page moves/actions)
+      - Key insights
+    """
+    timestamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    md_path = output_dir / f"analysis_report_{timestamp}.md"
+
+    metadata = report.get("metadata", {})
+    workspace = report.get("workspace_summary", {})
+    classifications = report.get("classification_summary", {})
+    recommendations = report.get("recommendations", {})
+    insights = report.get("insights", [])
+
+    lines: List[str] = []
+    lines.append("# NotionIQ Analysis Report")
+    lines.append("")
+    generated_at = metadata.get("generated_at", timestamp)
+    lines.append(f"_Generated: {generated_at}_")
+    lines.append("")
+
+    # Summary counts
+    lines.append("## Summary")
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("| --- | --- |")
+    lines.append(f"| Databases | {workspace.get('total_databases', 0)} |")
+    lines.append(f"| Pages analyzed | {workspace.get('total_pages_analyzed', 0)} |")
+    health = workspace.get("health_score", 0) or 0
+    lines.append(f"| Health score | {health:.1f}/100 |")
+    lines.append("")
+
+    # Classifications table
+    doc_types = classifications.get("document_types", {})
+    if doc_types:
+        lines.append("## Classifications")
+        lines.append("")
+        lines.append("| Document type | Pages |")
+        lines.append("| --- | --- |")
+        for name, count in sorted(
+            doc_types.items(), key=lambda kv: kv[1], reverse=True
+        ):
+            label = str(name).replace("_", " ").title()
+            lines.append(f"| {label} | {count} |")
+        lines.append("")
+
+    # Per-category recommendations table
+    if recommendations:
+        lines.append("## Recommendations")
+        lines.append("")
+        lines.append("| Category | Pages |")
+        lines.append("| --- | --- |")
+        for category, items in recommendations.items():
+            label = str(category).replace("_", " ").title()
+            count = len(items) if isinstance(items, list) else 0
+            lines.append(f"| {label} | {count} |")
+        lines.append("")
+
+    # Top actions: highest-confidence recommended page actions across categories.
+    actions: List[Dict[str, Any]] = []
+    for items in recommendations.values():
+        if isinstance(items, list):
+            for item in items:
+                if isinstance(item, dict):
+                    actions.append(item)
+    actions.sort(key=lambda i: i.get("confidence", 0) or 0, reverse=True)
+    if actions:
+        lines.append("## Top Actions")
+        lines.append("")
+        for item in actions[:10]:
+            title = item.get("title") or "Untitled"
+            action = item.get("action") or "review"
+            confidence = item.get("confidence", 0) or 0
+            target = item.get("suggested_database")
+            suffix = f" (to {target})" if target else ""
+            lines.append(
+                f"- **{title}** -> {action}{suffix} "
+                f"(confidence {confidence:.0%})"
+            )
+        lines.append("")
+
+    # Key insights
+    if insights:
+        lines.append("## Key Insights")
+        lines.append("")
+        for insight in insights[:5]:
+            title = insight.get("title", "")
+            description = insight.get("description", "")
+            lines.append(f"- **{title}**: {description}")
+        lines.append("")
+
+    md_path.write_text("\n".join(lines), encoding="utf-8")
+    return md_path
 
 
 def _update_env_file(env_path: Path, updates: Dict[str, str]) -> None:
