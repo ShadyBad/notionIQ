@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 1. **`config.py`** - Configuration management with Pydantic
 2. **`notion_client.py`** - Enhanced Notion API wrapper with caching and rate limiting
-3. **`claude_analyzer.py`** - AI-powered content classification and analysis
+3. **`ai_analyzer.py`** - AI-powered content classification and analysis
 4. **`workspace_analyzer.py`** - Deep workspace structure analysis and health metrics
 5. **`notion_organizer.py`** - Main orchestrator that coordinates all components
 
@@ -85,7 +85,7 @@ python notion_organizer.py --help
 python notion_client.py
 
 # Test AI analyzer
-python claude_analyzer.py
+python ai_analyzer.py
 
 # Test workspace analyzer
 python workspace_analyzer.py

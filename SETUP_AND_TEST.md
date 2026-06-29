@@ -81,8 +81,8 @@ print('✅ Connected to Notion!')
 ### Step 3: Test Individual Components
 ```bash
 # Test each module individually
-python notion_client.py
-python claude_analyzer.py  # Will test with sample data
+python notion_wrapper.py
+python ai_analyzer.py  # Will test with sample data
 python workspace_analyzer.py
 ```
 

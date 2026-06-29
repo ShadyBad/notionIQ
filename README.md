@@ -344,7 +344,7 @@ MIT License - see LICENSE file for details
    - Note any errors or issues
 
 ### This Week's Priorities
-1. **Implement Error Recovery** (see `error_recovery.py`)
+1. **Implement Error Recovery**
    - Add circuit breakers for API failures
    - Implement retry with exponential backoff
    - Add graceful degradation

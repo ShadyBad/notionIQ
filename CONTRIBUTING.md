@@ -350,12 +350,10 @@ anchovy/
 ├── notion_organizer.py      # Main entry point
 ├── config.py                # Configuration management
 ├── notion_client.py         # Notion API wrapper
-├── claude_analyzer.py       # AI analysis engine
+├── ai_analyzer.py           # AI analysis engine
 ├── workspace_analyzer.py    # Workspace analysis
 ├── api_optimizer.py         # API cost optimization
 ├── security.py             # Security utilities
-├── error_recovery.py       # Error handling (new)
-├── performance_enhancer.py # Performance optimization (new)
 ├── tests/                  # Test suite
 │   ├── conftest.py        # Test fixtures
 │   ├── test_*.py          # Test modules
