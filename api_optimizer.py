@@ -5,13 +5,12 @@ Minimizes API token usage and costs through intelligent optimization
 
 import hashlib
 import json
-import pickle
 import re
 import time
 import zlib
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -181,163 +180,6 @@ class TokenOptimizer:
         output_cost = (output_tokens / 1_000_000) * self.output_cost_per_1m
         cache_cost = (cache_read_tokens / 1_000_000) * self.input_cost_per_1m * 0.1
         return input_cost + output_cost + cache_cost
-
-
-class SmartCache:
-    """Advanced caching with fingerprinting and similarity detection"""
-
-    def __init__(self, cache_dir: Path, ttl_hours: int = 168):  # 1 week default
-        """Initialize smart cache"""
-        self.cache_dir = cache_dir
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.ttl = timedelta(hours=ttl_hours)
-        self.fingerprint_cache: Dict[str, Any] = {}
-        self.similarity_threshold = 0.85
-
-        # Load existing cache
-        self._load_cache()
-
-    def _generate_fingerprint(self, content: Dict[str, Any]) -> str:
-        """Generate content fingerprint for similarity detection"""
-        # Extract key features
-        features = {
-            "title_words": set(content.get("title", "").lower().split()),
-            "content_length": len(content.get("content", ""))
-            // 100,  # Bucket by 100 chars
-            "properties": sorted(content.get("properties", {}).keys()),
-            "has_dates": bool(re.search(r"\d{4}-\d{2}-\d{2}", str(content))),
-            "has_todos": "todo" in str(content).lower()
-            or "task" in str(content).lower(),
-            "has_meeting": "meeting" in str(content).lower(),
-            "word_count": len(str(content).split()) // 10,  # Bucket by 10 words
-        }
-
-        # Create fingerprint (handle sets and other non-serializable objects)
-        try:
-            fingerprint = hashlib.md5(
-                json.dumps(features, sort_keys=True, default=str).encode()
-            ).hexdigest()
-        except Exception as e:
-            # Fallback: use string representation
-            logger.debug(f"Could not serialize features for fingerprint: {e}")
-            fingerprint = hashlib.md5(str(features).encode()).hexdigest()
-
-        return fingerprint
-
-    def _calculate_similarity(self, content1: Dict, content2: Dict) -> float:
-        """Calculate similarity between two pieces of content"""
-        # Simple Jaccard similarity on words
-        words1 = set(str(content1).lower().split())
-        words2 = set(str(content2).lower().split())
-
-        if not words1 or not words2:
-            return 0.0
-
-        intersection = words1.intersection(words2)
-        union = words1.union(words2)
-
-        return len(intersection) / len(union)
-
-    def get_similar_cached(self, content: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Find similar content in cache"""
-        fingerprint = self._generate_fingerprint(content)
-
-        # Check exact fingerprint match
-        if fingerprint in self.fingerprint_cache:
-            cached_file = self.fingerprint_cache[fingerprint]
-            if cached_file.exists():
-                try:
-                    with open(cached_file, "rb") as f:
-                        cached_data = pickle.load(f)
-
-                    # Check TTL
-                    if datetime.now() - cached_data["timestamp"] < self.ttl:
-                        logger.debug(f"Found exact cache match: {fingerprint}")
-                        return cached_data["result"]
-                except:
-                    pass
-
-        # Check for similar content
-        for fp, cached_file in self.fingerprint_cache.items():
-            if cached_file.exists():
-                try:
-                    with open(cached_file, "rb") as f:
-                        cached_data = pickle.load(f)
-
-                    # Check TTL
-                    if datetime.now() - cached_data["timestamp"] < self.ttl:
-                        similarity = self._calculate_similarity(
-                            content, cached_data.get("original_content", {})
-                        )
-
-                        if similarity > self.similarity_threshold:
-                            logger.debug(f"Found similar cache match: {similarity:.2%}")
-                            # Return cached result with adjusted confidence
-                            result = cached_data["result"].copy()
-                            if "classification" in result:
-                                result["classification"]["confidence"] *= similarity
-                            return result
-                except:
-                    pass
-
-        return None
-
-    def store(self, content: Dict[str, Any], result: Dict[str, Any]):
-        """Store result in cache with fingerprint"""
-        fingerprint = self._generate_fingerprint(content)
-        cache_file = self.cache_dir / f"{fingerprint}.pkl"
-
-        cache_data = {
-            "timestamp": datetime.now(),
-            "fingerprint": fingerprint,
-            "original_content": content,
-            "result": result,
-        }
-
-        with open(cache_file, "wb") as f:
-            pickle.dump(cache_data, f)
-
-        self.fingerprint_cache[fingerprint] = cache_file
-        self._save_cache()
-
-    def _load_cache(self):
-        """Load cache index"""
-        index_file = self.cache_dir / "cache_index.json"
-        if index_file.exists():
-            try:
-                with open(index_file, "r") as f:
-                    data = json.load(f)
-                    self.fingerprint_cache = {k: Path(v) for k, v in data.items()}
-            except:
-                self.fingerprint_cache = {}
-
-    def _save_cache(self):
-        """Save cache index"""
-        index_file = self.cache_dir / "cache_index.json"
-        with open(index_file, "w") as f:
-            json.dump({k: str(v) for k, v in self.fingerprint_cache.items()}, f)
-
-    def clean_expired(self):
-        """Clean expired cache entries"""
-        expired = []
-        for fingerprint, cache_file in self.fingerprint_cache.items():
-            if cache_file.exists():
-                try:
-                    with open(cache_file, "rb") as f:
-                        cached_data = pickle.load(f)
-
-                    if datetime.now() - cached_data["timestamp"] > self.ttl:
-                        cache_file.unlink()
-                        expired.append(fingerprint)
-                except:
-                    expired.append(fingerprint)
-
-        for fp in expired:
-            del self.fingerprint_cache[fp]
-
-        if expired:
-            self._save_cache()
-            logger.info(f"Cleaned {len(expired)} expired cache entries")
 
 
 class RequestBatcher:
