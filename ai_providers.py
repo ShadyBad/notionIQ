@@ -213,12 +213,12 @@ class AIProviderManager:
     def _get_preferred_claude_model(self) -> AIModel:
         """Get user's preferred Claude model from environment"""
         model_hint = os.getenv("CLAUDE_MODEL", "").lower()
-        if "haiku" in model_hint:
-            return AIModel.CLAUDE_HAIKU
+        if "opus" in model_hint:
+            return AIModel.CLAUDE_OPUS
         elif "sonnet" in model_hint:
             return AIModel.CLAUDE_SONNET
         else:
-            return AIModel.CLAUDE_OPUS  # Default to best
+            return AIModel.CLAUDE_HAIKU  # cost-optimal default
 
     def _get_preferred_openai_model(self) -> AIModel:
         """Get user's preferred OpenAI model from environment"""
