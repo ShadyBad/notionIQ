@@ -40,7 +40,6 @@ setup(
         "logger_wrapper",
         "notion_organizer",
         "notion_wrapper",
-        "quickstart",
         "recommendation_executor",
         "security",
         "workspace_analyzer",

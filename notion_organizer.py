@@ -17,6 +17,7 @@ from rich import box
 from rich import print as rprint
 from rich.console import Console, Group
 from rich.panel import Panel
+from rich.prompt import Prompt
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
@@ -1017,7 +1018,54 @@ class NotionOrganizer:
         )
 
 
-@click.command()
+class DefaultGroup(click.Group):
+    """A click.Group that runs a default subcommand when none is given.
+
+    Lets bare ``notioniq`` (plus all its analysis options) behave exactly as
+    the old single-command CLI while still exposing ``notioniq init`` etc.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.default_cmd_name = kwargs.pop("default_cmd_name", None)
+        super().__init__(*args, **kwargs)
+
+    def resolve_command(self, ctx, args):
+        # If the first arg isn't a known subcommand, fall back to the default
+        # command so its options parse against bare `notioniq`.
+        if args and self.default_cmd_name:
+            first = args[0]
+            if first not in self.commands and not first.startswith("-"):
+                # Unknown positional: let the default command try to handle it.
+                args = [self.default_cmd_name] + args
+        return super().resolve_command(ctx, args)
+
+    def parse_args(self, ctx, args):
+        # No args at all, or a leading option (no subcommand) -> default
+        # command. This also routes `notioniq --help` to the analysis
+        # command so its options are listed for bare `notioniq`.
+        if self.default_cmd_name:
+            if not args:
+                args = [self.default_cmd_name]
+            elif args[0].startswith("-"):
+                args = [self.default_cmd_name] + args
+        return super().parse_args(ctx, args)
+
+
+@click.group(
+    cls=DefaultGroup,
+    default_cmd_name="run",
+    invoke_without_command=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+def main():
+    """NotionIQ - Intelligent Notion Workspace Organizer.
+
+    Run with no arguments to analyze your workspace, or use a subcommand
+    (e.g. `notioniq init` to set up your API keys).
+    """
+
+
+@main.command(name="run")
 @click.option(
     "--mode",
     type=click.Choice(["workspace", "inbox", "page", "databases"]),
@@ -1091,7 +1139,7 @@ class NotionOrganizer:
     default=False,
     help="Show per-page classification and processing detail (quiet by default)",
 )
-def main(
+def run(
     mode: str,
     target_databases: tuple,
     skip_databases: tuple,
@@ -1107,7 +1155,7 @@ def main(
     auto_execute: bool,
     verbose: bool,
 ):
-    """NotionIQ - Intelligent Notion Workspace Organizer"""
+    """Analyze a Notion workspace (default command)."""
 
     try:
         # Load settings
@@ -1197,6 +1245,121 @@ def main(
         console.print(f"[bold red]Error: {e}[/bold red]")
         logger.exception("Fatal error in main")
         sys.exit(1)
+
+
+def _update_env_file(env_path: Path, updates: Dict[str, str]) -> None:
+    """Write/update keys in a .env file without clobbering unrelated keys.
+
+    Existing lines for keys in ``updates`` are replaced in place; all other
+    lines (including comments, blanks, and unrelated keys) are preserved.
+    New keys are appended at the end.
+    """
+    remaining = dict(updates)
+    lines: List[str] = []
+
+    if env_path.exists():
+        existing = env_path.read_text(encoding="utf-8").splitlines()
+        for line in existing:
+            stripped = line.strip()
+            # Preserve comments and blank lines untouched.
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                lines.append(line)
+                continue
+            key = stripped.split("=", 1)[0].strip()
+            if key in remaining:
+                lines.append(f"{key}={remaining.pop(key)}")
+            else:
+                lines.append(line)
+
+    for key, value in remaining.items():
+        lines.append(f"{key}={value}")
+
+    content = "\n".join(lines)
+    if content and not content.endswith("\n"):
+        content += "\n"
+    env_path.write_text(content, encoding="utf-8")
+
+
+@main.command(name="init")
+def init():
+    """Interactive setup wizard: collect API keys and write a .env file."""
+    try:
+        from security import SecurityValidator
+    except Exception:  # pragma: no cover - security module is expected present
+        SecurityValidator = None  # type: ignore[assignment]
+
+    console.print(
+        Panel(
+            "Let's set up NotionIQ. You'll need your Notion integration token, "
+            "your Inbox database ID, and your Anthropic (Claude) API key.",
+            title="[bold]NotionIQ init[/bold]",
+            border_style="cyan",
+            expand=False,
+        )
+    )
+
+    env_path = Path.cwd() / ".env"
+    if env_path.exists():
+        console.print(
+            f"[yellow]An existing .env was found at {env_path}. "
+            "Unrelated keys will be preserved.[/yellow]"
+        )
+
+    def _prompt_required(label: str, *, password: bool, validator=None) -> str:
+        while True:
+            value = Prompt.ask(label, password=password).strip()
+            if not value:
+                console.print("[red]This value cannot be empty.[/red]")
+                continue
+            if validator is not None and not validator(value):
+                console.print(
+                    "[yellow]Value doesn't match the expected format, "
+                    "but it will be saved anyway.[/yellow]"
+                )
+            return value
+
+    notion_validator = (
+        SecurityValidator.validate_notion_api_key if SecurityValidator else None
+    )
+    anthropic_validator = (
+        SecurityValidator.validate_anthropic_api_key if SecurityValidator else None
+    )
+
+    notion_key = _prompt_required(
+        "Notion API key (NOTION_API_KEY)",
+        password=True,
+        validator=notion_validator,
+    )
+    inbox_db = _prompt_required(
+        "Notion Inbox database ID (NOTION_INBOX_DATABASE_ID)",
+        password=False,
+    )
+    anthropic_key = _prompt_required(
+        "Anthropic API key (ANTHROPIC_API_KEY)",
+        password=True,
+        validator=anthropic_validator,
+    )
+
+    _update_env_file(
+        env_path,
+        {
+            "NOTION_API_KEY": notion_key,
+            "NOTION_INBOX_DATABASE_ID": inbox_db,
+            "ANTHROPIC_API_KEY": anthropic_key,
+        },
+    )
+
+    console.print(
+        Panel(
+            f"Configuration saved to [bold]{env_path}[/bold].\n\n"
+            "Next, run:\n\n    [bold cyan]notioniq[/bold cyan]\n\n"
+            "to analyze your workspace (add [bold]--dry-run[/bold] to preview "
+            "without changing Notion).",
+            title="[bold green]Setup complete[/bold green]",
+            border_style="green",
+            expand=False,
+        )
+    )
 
 
 if __name__ == "__main__":

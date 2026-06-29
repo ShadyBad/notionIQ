@@ -55,9 +55,12 @@ pip install -e .
 ### 2. Configure API Keys
 
 ```bash
-# Copy example configuration
-cp .env.example .env
+# Interactive setup wizard (recommended) - prompts for your keys
+# and writes a .env without clobbering unrelated settings
+notioniq init
 
+# ...or configure manually:
+cp .env.example .env
 # Edit .env with your credentials
 # Required:
 # - NOTION_API_KEY=your_notion_integration_token
@@ -68,10 +71,7 @@ cp .env.example .env
 ### 3. Run Your First Analysis
 
 ```bash
-# Quickstart - Zero configuration required!
-python quickstart.py
-
-# Or run directly (auto-configures by default)
+# Run directly (auto-configures by default)
 notioniq
 
 # Test with a small batch first
