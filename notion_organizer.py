@@ -260,19 +260,12 @@ class NotionOrganizer:
 
                         # Analyze pages
                         for page_data in pages_with_content:
-                            page = page_data["page"]
                             content = page_data["content"]
 
-                            # Optimize content for AI
-                            optimized = self.api_optimizer.optimize_page_content(
-                                content, page
-                            )
-
-                            # Analyze with AI
-                            if optimized.get("content"):
-                                result = await self.ai_analyzer.analyze_page(
-                                    page, optimized["content"]
-                                )
+                            # get_page_content already returns the full analyzable
+                            # dict; analyze_page optimizes the content internally.
+                            if content.get("content"):
+                                result = self.ai_analyzer.analyze_page(content)
                                 self.analysis_results.append(result)
                                 total_pages_processed += 1
 
@@ -310,12 +303,9 @@ class NotionOrganizer:
                 # Get page content
                 content = self.notion.get_page_content(page_id)
 
-                # Analyze the page
-                optimized = self.api_optimizer.optimize_page_content(content, page)
-                if optimized.get("content"):
-                    result = await self.ai_analyzer.analyze_page(
-                        page, optimized["content"]
-                    )
+                # Analyze the page (analyze_page optimizes the content internally)
+                if content.get("content"):
+                    result = self.ai_analyzer.analyze_page(content)
                     self.analysis_results.append(result)
                     processed_pages.append(page_id)
 
