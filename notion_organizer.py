@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import click
+from pydantic import ValidationError
 from rich import box
 from rich import print as rprint
 from rich.console import Console, Group
@@ -1169,8 +1170,23 @@ def run(
     """Analyze a Notion workspace (default command)."""
 
     try:
-        # Load settings
-        settings = get_settings()
+        # Load settings — friendly, actionable message if not configured yet
+        try:
+            settings = get_settings()
+        except ValidationError as cfg_err:
+            missing = [
+                str(err["loc"][0])
+                for err in cfg_err.errors()
+                if err.get("type") == "missing"
+            ]
+            console.print("[bold red]NotionIQ isn't configured yet.[/bold red]")
+            if missing:
+                console.print(f"  Missing: [yellow]{', '.join(missing)}[/yellow]")
+            console.print(
+                "  Run [bold cyan]notioniq init[/bold cyan] to set up your keys "
+                "(or copy .env.example to .env)."
+            )
+            sys.exit(1)
 
         # Detect and display available providers if auto
         if provider == "auto":
