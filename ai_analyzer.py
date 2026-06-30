@@ -5,6 +5,7 @@ Handles all AI-powered classification and recommendation generation
 
 import hashlib
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -211,7 +212,10 @@ class UniversalAIAnalyzer:
             output_tokens = self.api_optimizer.token_optimizer.count_tokens(response)
 
         self.api_optimizer.record_api_usage(
-            input_tokens, output_tokens, from_cache=False
+            input_tokens,
+            output_tokens,
+            from_cache=False,
+            cache_read_tokens=cache_read_tokens,
         )
 
         cost = self.api_optimizer.token_optimizer.calculate_cost(
@@ -502,6 +506,7 @@ Content: {prepared_content['content'][:1000]}"""
 
             content_str = json.dumps(
                 {
+                    "id": page_content.get("id"),
                     "title": page_content.get("title"),
                     "content": page_content.get("content"),
                     "properties": props,
@@ -621,10 +626,6 @@ Content: {prepared_content['content'][:1000]}"""
         console.print(f"  Cache Hit Rate: {usage_report['cache_hit_rate']}")
 
         return results
-
-
-# Import os for environment variable checking
-import os
 
 if __name__ == "__main__":
     # Test the analyzer

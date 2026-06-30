@@ -406,14 +406,20 @@ class APIOptimizer:
         return False
 
     def record_api_usage(
-        self, input_tokens: int, output_tokens: int, from_cache: bool = False
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        from_cache: bool = False,
+        cache_read_tokens: int = 0,
     ):
         """Record API usage metrics"""
         if not from_cache:
             self.metrics.total_requests += 1
             self.metrics.total_tokens += input_tokens + output_tokens
 
-            cost = self.token_optimizer.calculate_cost(input_tokens, output_tokens)
+            cost = self.token_optimizer.calculate_cost(
+                input_tokens, output_tokens, cache_read_tokens
+            )
             self.metrics.total_cost += cost
 
             # Track by hour

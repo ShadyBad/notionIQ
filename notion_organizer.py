@@ -297,10 +297,7 @@ class NotionOrganizer:
                 return
 
             try:
-                # Get the page
-                page = self.notion.client.pages.retrieve(page_id)
-
-                # Get page content
+                # Get page content (full analyzable dict incl. title + properties)
                 content = self.notion.get_page_content(page_id)
 
                 # Analyze the page (analyze_page optimizes the content internally)
@@ -1381,7 +1378,11 @@ def _update_env_file(env_path: Path, updates: Dict[str, str]) -> None:
     lines (including comments, blanks, and unrelated keys) are preserved.
     New keys are appended at the end.
     """
-    remaining = dict(updates)
+    # Strip CR/LF so a value can never inject an extra line/key into .env.
+    def _clean(v: str) -> str:
+        return str(v).replace("\n", "").replace("\r", "")
+
+    remaining = {k: _clean(v) for k, v in updates.items()}
     lines: List[str] = []
 
     if env_path.exists():
@@ -1405,6 +1406,11 @@ def _update_env_file(env_path: Path, updates: Dict[str, str]) -> None:
     if content and not content.endswith("\n"):
         content += "\n"
     env_path.write_text(content, encoding="utf-8")
+    # Credentials file — restrict to owner read/write only.
+    try:
+        env_path.chmod(0o600)
+    except OSError:
+        pass
 
 
 @main.command(name="init")
@@ -1412,7 +1418,11 @@ def init():
     """Interactive setup wizard: collect API keys and write a .env file."""
     try:
         from security import SecurityValidator
-    except Exception:  # pragma: no cover - security module is expected present
+    except Exception as exc:  # pragma: no cover - security module is expected present
+        console.print(
+            f"[yellow]Warning: security module unavailable ({exc}); "
+            f"key format checks will be skipped.[/yellow]"
+        )
         SecurityValidator = None  # type: ignore[assignment]
 
     console.print(
