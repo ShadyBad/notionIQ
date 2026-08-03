@@ -34,7 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -e ".[dev]"
 
       - name: Black (formatting)
@@ -70,7 +70,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -e ".[dev]"
 
       # No API keys and no .env: the suite must pass entirely offline.
@@ -91,7 +91,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -e ".[dev]"
 
       # Fails on medium and high severity findings. Low severity is reported
@@ -132,7 +132,7 @@ jobs:
 
       - name: Install build tools
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -e ".[dev]"
 
       - name: Build sdist and wheel
@@ -144,7 +144,7 @@ jobs:
       - name: Smoke test the built wheel
         run: |
           python -m venv /tmp/wheel-check
-          /tmp/wheel-check/bin/pip install --upgrade pip
+          /tmp/wheel-check/bin/pip install --upgrade pip setuptools wheel
           /tmp/wheel-check/bin/pip install dist/*.whl
           /tmp/wheel-check/bin/notioniq --help
 
