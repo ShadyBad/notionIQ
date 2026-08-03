@@ -211,7 +211,9 @@ class SemanticDeduplicator:
         signature["top_words"] = [w[0] for w in top_words]
 
         # Create hash for exact matching
-        signature["hash"] = hashlib.md5(text.encode()).hexdigest()
+        signature["hash"] = hashlib.md5(
+            text.encode(), usedforsecurity=False
+        ).hexdigest()
 
         return signature
 

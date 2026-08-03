@@ -46,7 +46,9 @@ def test_update_env_creates_file_when_absent(tmp_path):
 def test_init_command_writes_env(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     answers = iter(["secret_tok", "deadbeef1234", "sk-ant-key"])
-    with patch("notion_organizer.Prompt.ask", side_effect=lambda *a, **k: next(answers)):
+    with patch(
+        "notion_organizer.Prompt.ask", side_effect=lambda *a, **k: next(answers)
+    ):
         result = CliRunner().invoke(no.main, ["init"])
 
     assert result.exit_code == 0, result.output

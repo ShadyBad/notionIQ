@@ -522,7 +522,7 @@ Content: {prepared_content['content'][:1000]}"""
                 f"{page_content.get('title', '')}_{page_content.get('id', '')}"
             )
 
-        return hashlib.md5(content_str.encode()).hexdigest()
+        return hashlib.md5(content_str.encode(), usedforsecurity=False).hexdigest()
 
     def _load_cache(self):
         """Load response cache from file"""
@@ -626,6 +626,7 @@ Content: {prepared_content['content'][:1000]}"""
         console.print(f"  Cache Hit Rate: {usage_report['cache_hit_rate']}")
 
         return results
+
 
 if __name__ == "__main__":
     # Test the analyzer

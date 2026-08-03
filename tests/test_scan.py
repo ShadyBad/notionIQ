@@ -31,11 +31,23 @@ class CountingNotionClient:
         # Fixture workspace: two databases, three pages total.
         self._db_pages = {
             "db1": [
-                {"id": "p1", "properties": {}, "last_edited_time": "2026-01-01T00:00:00Z"},
-                {"id": "p2", "properties": {}, "last_edited_time": "2026-01-02T00:00:00Z"},
+                {
+                    "id": "p1",
+                    "properties": {},
+                    "last_edited_time": "2026-01-01T00:00:00Z",
+                },
+                {
+                    "id": "p2",
+                    "properties": {},
+                    "last_edited_time": "2026-01-02T00:00:00Z",
+                },
             ],
             "db2": [
-                {"id": "p3", "properties": {}, "last_edited_time": "2026-01-03T00:00:00Z"},
+                {
+                    "id": "p3",
+                    "properties": {},
+                    "last_edited_time": "2026-01-03T00:00:00Z",
+                },
             ],
         }
         # Call counters keyed by entity id.
@@ -58,9 +70,7 @@ class CountingNotionClient:
 
         class _PagesRetrieve:
             def retrieve(self, page_id):
-                outer.retrieve_count[page_id] = (
-                    outer.retrieve_count.get(page_id, 0) + 1
-                )
+                outer.retrieve_count[page_id] = outer.retrieve_count.get(page_id, 0) + 1
                 return {
                     "id": page_id,
                     "url": "",

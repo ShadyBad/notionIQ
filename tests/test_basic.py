@@ -6,7 +6,7 @@ def test_imports():
     try:
         import config
         import notion_wrapper as notion_client
-        
+
         assert True
     except ImportError:
         # It's okay if imports fail in CI without proper env setup

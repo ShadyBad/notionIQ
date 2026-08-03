@@ -18,8 +18,8 @@ from rich import box
 from rich import print as rprint
 from rich.console import Console, Group
 from rich.panel import Panel
-from rich.prompt import Prompt
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
+from rich.prompt import Prompt
 from rich.table import Table
 
 from advanced_optimizer import OptimizationConfig
@@ -219,9 +219,7 @@ class NotionOrganizer:
             }
 
         if self.verbose:
-            console.print(
-                f"[green]Found {len(databases)} databases to process[/green]"
-            )
+            console.print(f"[green]Found {len(databases)} databases to process[/green]")
 
         with Progress(
             SpinnerColumn(),
@@ -1368,8 +1366,7 @@ def _write_markdown_report(
             target = item.get("suggested_database")
             suffix = f" (to {target})" if target else ""
             lines.append(
-                f"- **{title}** -> {action}{suffix} "
-                f"(confidence {confidence:.0%})"
+                f"- **{title}** -> {action}{suffix} " f"(confidence {confidence:.0%})"
             )
         lines.append("")
 
@@ -1394,6 +1391,7 @@ def _update_env_file(env_path: Path, updates: Dict[str, str]) -> None:
     lines (including comments, blanks, and unrelated keys) are preserved.
     New keys are appended at the end.
     """
+
     # Strip CR/LF so a value can never inject an extra line/key into .env.
     def _clean(v: str) -> str:
         return str(v).replace("\n", "").replace("\r", "")

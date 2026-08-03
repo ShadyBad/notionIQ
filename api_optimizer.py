@@ -206,12 +206,15 @@ class RequestBatcher:
         # Generate content hash (handle sets and other non-serializable objects)
         try:
             content_hash = hashlib.md5(
-                json.dumps(content, sort_keys=True, default=str).encode()
+                json.dumps(content, sort_keys=True, default=str).encode(),
+                usedforsecurity=False,
             ).hexdigest()
         except Exception as e:
             # Fallback: use string representation
             logger.debug(f"Could not serialize content for hash: {e}")
-            content_hash = hashlib.md5(str(content).encode()).hexdigest()
+            content_hash = hashlib.md5(
+                str(content).encode(), usedforsecurity=False
+            ).hexdigest()
 
         if content_hash in self.seen_hashes:
             logger.debug(f"Skipping duplicate content: {content_hash}")
@@ -241,12 +244,15 @@ class RequestBatcher:
         for item in batch:
             try:
                 item_hash = hashlib.md5(
-                    json.dumps(item, sort_keys=True, default=str).encode()
+                    json.dumps(item, sort_keys=True, default=str).encode(),
+                    usedforsecurity=False,
                 ).hexdigest()
             except Exception as e:
                 # Fallback: use string representation
                 logger.debug(f"Could not serialize item for hash: {e}")
-                item_hash = hashlib.md5(str(item).encode()).hexdigest()
+                item_hash = hashlib.md5(
+                    str(item).encode(), usedforsecurity=False
+                ).hexdigest()
 
             if item_hash in self.batch_cache:
                 results.append(self.batch_cache[item_hash])

@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Status
 
-- **Project**: NotionIQ (codename "anchovy")
+- **Project**: NotionIQ
 - **Stack**: Python 3.11+, Notion API, Anthropic Claude API
 - **Status**: Core functionality implemented, ready for testing
 - **License**: MIT License
@@ -44,11 +44,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 python3 -m venv venv
 source venv/bin/activate  # On macOS/Linux
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Install the `notioniq` command (editable install)
+# Install the package and the `notioniq` command
 pip install -e .
+
+# Add the development toolchain (matches CI exactly)
+pip install -e ".[dev]"
 
 # Configure environment
 cp .env.example .env

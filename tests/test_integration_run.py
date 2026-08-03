@@ -228,9 +228,7 @@ class FakeNotionSDK:
                                     "id": f"{page_id}_b0",
                                     "type": "paragraph",
                                     "paragraph": {
-                                        "rich_text": [
-                                            {"plain_text": pg["content"]}
-                                        ]
+                                        "rich_text": [{"plain_text": pg["content"]}]
                                     },
                                 }
                             ],
@@ -372,7 +370,10 @@ def test_workspace_mode_runs_end_to_end(tmp_path, monkeypatch):
 
     # All 5 fixture pages have content -> all analyzed.
     assert len(org.analysis_results) == len(ALL_PAGE_IDS) == 5
-    types = {r["page_title"]: r["classification"]["primary_type"] for r in org.analysis_results}
+    types = {
+        r["page_title"]: r["classification"]["primary_type"]
+        for r in org.analysis_results
+    }
     assert types == TITLE_TO_TYPE
 
 
@@ -447,7 +448,10 @@ def test_no_similarity_bleed_between_near_identical_pages(tmp_path, monkeypatch)
     assert res_b["page_title"] == "Near B"
     assert res_a["classification"]["primary_type"] == "reference"
     assert res_b["classification"]["primary_type"] == "journal"
-    assert res_a["classification"]["primary_type"] != res_b["classification"]["primary_type"]
+    assert (
+        res_a["classification"]["primary_type"]
+        != res_b["classification"]["primary_type"]
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -485,9 +489,7 @@ def test_summary_panel_renders_with_counts_and_cost(tmp_path, monkeypatch):
 
 def test_markdown_export_writes_sections(tmp_path, monkeypatch):
     """Assertion 7: --format both writes an .md report with the expected headers."""
-    org, analyzer, _ = build_organizer(
-        tmp_path, monkeypatch, output_format="both"
-    )
+    org, analyzer, _ = build_organizer(tmp_path, monkeypatch, output_format="both")
     asyncio.run(org.run_analysis(analyze_workspace=True, process_mode="workspace"))
 
     md_path = org._last_markdown_report

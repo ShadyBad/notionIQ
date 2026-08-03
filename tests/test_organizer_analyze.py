@@ -20,9 +20,7 @@ def _make_organizer(content_dict):
     org.verbose = False
     org.workspace_analysis = None
     org.notion = SimpleNamespace(
-        client=SimpleNamespace(
-            pages=SimpleNamespace(retrieve=lambda pid: {"id": pid})
-        ),
+        client=SimpleNamespace(pages=SimpleNamespace(retrieve=lambda pid: {"id": pid})),
         get_page_content=lambda pid: content_dict,
         get_page_blocks=lambda pid: [],
     )

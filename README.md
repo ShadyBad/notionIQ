@@ -1,5 +1,9 @@
 # NotionIQ - Intelligent Notion Workspace Organizer
 
+[![CI](https://github.com/ShadyBad/notionIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/ShadyBad/notionIQ/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 **🎯 Zero Configuration Required - Automatically Optimizes for Minimal API Costs**
 
 A premium AI-powered tool that analyzes your Notion workspace, classifies content, and provides actionable recommendations for optimal organization. Now with **automatic API configuration** that selects the best settings for your use case.
@@ -45,10 +49,7 @@ cd notionIQ
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Install the `notioniq` command (editable install)
+# Install the package and the `notioniq` command
 pip install -e .
 ```
 
@@ -300,6 +301,27 @@ CACHE_TTL_HOURS=24                # Cache expiration
 - **Security**: 0 critical vulnerabilities
 - **UX**: < 2 second startup
 
+## ✅ Continuous Integration
+
+Every check in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) can fail the
+build. There is no `continue-on-error` and nothing swallows an exit code, so the
+badge above reflects the real state of the code.
+
+| Job | Enforces |
+| --- | --- |
+| Lint and type check | `black --check`, `isort --check-only`, `flake8` (syntax and undefined names), `mypy` |
+| Tests | Full pytest suite on Python 3.11 and 3.12, offline, with no API keys and no `.env` |
+| Security | `bandit` at medium severity and above, plus `pip-audit` for known CVEs in dependencies |
+| Build package | `python -m build`, `twine check --strict`, and a smoke test that installs the wheel into a clean venv and runs `notioniq --help` |
+| Docker image | Image build followed by a `notioniq --help` smoke test inside the container |
+
+`mypy` runs against the whole tree. Modules that predate the type gate are listed
+under `[[tool.mypy.overrides]]` in `pyproject.toml`; that list may only shrink, so
+new and refactored modules have to type check.
+
+Reproduce the full pipeline locally with `pip install -e ".[dev]"` — the `dev`
+extra pins the exact tool versions CI uses.
+
 ## 🤝 Contributing
 
 Contributions welcome! Please read our contributing guidelines before submitting PRs.
@@ -334,8 +356,8 @@ MIT License - see LICENSE file for details
 ### Immediate Actions (Today)
 1. **Install and Test**
    ```bash
-   pip install -r requirements.txt
-   python quickstart.py  # Zero-config setup
+   pip install -e .
+   notioniq init  # Guided setup wizard
    ```
 
 2. **Run Initial Analysis**

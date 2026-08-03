@@ -1,6 +1,90 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "notioniq"
+version = "2.0.0"
+description = "Intelligent Notion workspace organizer powered by Claude AI"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Brandon Shay" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Office/Business",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "notion-client==2.2.1",
+    "anthropic>=0.40,<1.0",
+    "python-dotenv==1.2.2",
+    "pydantic==2.6.4",
+    "pydantic-settings==2.2.1",
+    "rich==15.0.0",
+    "click==8.4.2",
+    "numpy==1.26.4",
+    "tenacity==8.2.3",
+    "loguru==0.7.2",
+    "cryptography==50.0.0",
+    "tiktoken==0.5.2",
+]
+
+[project.optional-dependencies]
+# Optional AI providers. ai_analyzer.py imports these lazily and raises a clear
+# "not installed" error when the matching extra is missing.
+openai = ["openai>=1.14"]
+gemini = ["google-generativeai>=0.8.6"]
+
+# Development and CI toolchain, pinned so that a red build means the code
+# changed rather than the toolchain moving underneath it.
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "pytest-cov==7.1.0",
+    "black==26.5.1",
+    "isort==8.0.1",
+    "flake8==7.3.0",
+    "mypy==2.3.0",
+    "bandit==1.9.4",
+    "pip-audit==2.10.1",
+    "build==1.5.0",
+    "twine==7.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ShadyBad/notionIQ"
+Issues = "https://github.com/ShadyBad/notionIQ/issues"
+
+[project.scripts]
+notioniq = "notion_organizer:main"
+
+# Flat layout: source modules live at the repo root rather than in a package
+# directory, so they have to be listed explicitly.
+[tool.setuptools]
+py-modules = [
+    "advanced_optimizer",
+    "ai_analyzer",
+    "ai_providers",
+    "api_auto_config",
+    "api_optimizer",
+    "config",
+    "cost_monitor",
+    "logger_wrapper",
+    "notion_organizer",
+    "notion_wrapper",
+    "recommendation_executor",
+    "security",
+    "workspace_analyzer",
+]
+
 [tool.black]
 line-length = 88
-target-version = ['py39', 'py310', 'py311']
+target-version = ['py311', 'py312']
 include = '\.pyi?$'
 
 [tool.isort]
@@ -11,3 +95,27 @@ include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
+
+[tool.mypy]
+ignore_missing_imports = true
+exclude = "^(\\.venv|venv|build|dist)/"
+
+# Type-check debt. These modules predate the type gate and still carry errors,
+# so mypy reports on them but does not fail the build. CI fails on everything
+# else, which means new and refactored modules must type check from day one.
+#
+# This list may only shrink. Do not add modules to it.
+[[tool.mypy.overrides]]
+module = [
+    "advanced_optimizer",
+    "ai_analyzer",
+    "ai_providers",
+    "api_auto_config",
+    "api_optimizer",
+    "config",
+    "notion_organizer",
+    "notion_wrapper",
+    "recommendation_executor",
+    "workspace_analyzer",
+]
+ignore_errors = true

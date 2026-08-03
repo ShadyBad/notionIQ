@@ -26,12 +26,12 @@ By participating in this project, you agree to abide by our Code of Conduct:
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/anchovy.git
-   cd anchovy
+   git clone https://github.com/YOUR_USERNAME/notionIQ.git
+   cd notionIQ
    ```
 3. **Add upstream remote**:
    ```bash
-   git remote add upstream https://github.com/ORIGINAL_OWNER/anchovy.git
+   git remote add upstream https://github.com/ShadyBad/notionIQ.git
    ```
 4. **Create a branch** for your changes:
    ```bash
@@ -53,11 +53,14 @@ By participating in this project, you agree to abide by our Code of Conduct:
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-2. **Install dependencies**:
+2. **Install the package plus the development toolchain**:
    ```bash
-   pip install -r requirements.txt
-   pip install -r requirements-dev.txt  # Development dependencies
+   pip install -e ".[dev]"
    ```
+
+   The `dev` extra pins the exact tools CI runs (pytest, black, isort,
+   flake8, mypy, bandit, pip-audit, build, twine), so a green run locally
+   means a green run in CI.
 
 3. **Set up pre-commit hooks**:
    ```bash
@@ -346,7 +349,7 @@ Types:
 ## 🏗️ Project Structure
 
 ```
-anchovy/
+notionIQ/
 ├── notion_organizer.py      # Main entry point
 ├── config.py                # Configuration management
 ├── notion_client.py         # Notion API wrapper

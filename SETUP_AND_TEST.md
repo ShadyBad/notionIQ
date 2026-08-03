@@ -13,9 +13,8 @@ venv\Scripts\activate  # On Windows
 ### 2. Install Dependencies
 ```bash
 pip install --upgrade pip
-pip install -r requirements.txt
 
-# Install the `notioniq` command (editable install)
+# Install the package and the `notioniq` command
 pip install -e .
 ```
 

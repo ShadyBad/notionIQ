@@ -43,7 +43,8 @@ dist/
 *.egg-info/
 .eggs/
 
-# Documentation
+# Documentation. README.md and LICENSE are kept because the package metadata
+# in pyproject.toml references them, so the build fails without them.
 *.md
-LICENSE
+!README.md
 docs/

@@ -2,23 +2,21 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Build-time only: some wheels still need a compiler on slim images.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies before the rest of the source so that edits to
+# application code do not invalidate the dependency layer.
+COPY pyproject.toml README.md LICENSE ./
+COPY *.py ./
+RUN pip install --no-cache-dir .
 
-# Copy application code
 COPY . .
 
-# Create data and output directories
 RUN mkdir -p data output
 
-# Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Run the application
-CMD ["python", "notion_organizer.py"]
+CMD ["notioniq"]
